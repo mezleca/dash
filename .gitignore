@@ -1,0 +1,61 @@
+# Build outputs
+build/
+build-*/
+cmake-build-*/
+out/
+dist/
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+DartConfiguration.tcl
+Testing/
+
+# Ninja and Make
+.ninja_deps
+.ninja_log
+build.ninja
+rules.ninja
+Makefile
+
+# Compiled objects
+*.d
+*.o
+*.obj
+*.lo
+*.slo
+*.gch
+*.pch
+
+# Libraries
+*.a
+*.lib
+*.la
+*.lai
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# Executables and debug files
+*.app
+*.exe
+*.out
+*.ilk
+*.pdb
+*.dSYM/
+*.dwo
+
+# Local editor and temp files
+.cache/
+.idea/
+.vscode/
+*.log
+*.tmp
+*.bak
+*.swp
+*~

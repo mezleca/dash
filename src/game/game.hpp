@@ -9,6 +9,7 @@
 #include <vector>
 
 struct Player;
+struct Spike;
 struct Platform;
 
 struct GameWindow {
@@ -21,14 +22,15 @@ struct GameObject {
     explicit GameObject();
     ~GameObject();
 
-    void load_texture(const char* location);
+    std::string name;
 
-    virtual void render() = 0;
-
+    Texture2D texture;
     Vector2 position;
     Vector2 dimensions;
-    Texture2D texture;
     uint32_t id = 0;
+
+    void load_texture(const char* location);
+    virtual void render() = 0;
 };
 
 struct PlaceholderBuild {
@@ -50,11 +52,14 @@ struct Game {
 
     // TEMP STUFF ----
     std::vector<PlaceholderBuild> rects;
-    Platform* floor;
+    Music test_level_music;
+    Sound explosion;
     // ------
 
     const float fixed_timestep = 1.0f / 60.0f;
     float alpha = 0.0f;
+
+    bool paused = false;
 
     // this will def fuck me later
     void add_game_object(GameObject* obj) {

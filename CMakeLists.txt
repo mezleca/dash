@@ -19,10 +19,18 @@ add_subdirectory(vendor/raylib)
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS "src/*.hpp")
+file(GLOB IMGUI_CORE_SOURCES "vendor/imgui/*.cpp")
 
 add_executable(${PROJECT_NAME}
+    vendor/rlimgui/rlImGui.cpp
+    ${IMGUI_CORE_SOURCES}
     ${SOURCES}
     ${HEADERS}
+)
+
+target_include_directories(${PROJECT_NAME} PUBLIC
+    vendor/rlimgui
+    vendor/imgui/
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE

@@ -1,3 +1,9 @@
 [submodule "vendor/raylib"]
 	path = vendor/raylib
 	url = https://github.com/raysan5/raylib
+[submodule "vendor/rlimgui"]
+	path = vendor/rlimgui
+	url = https://github.com/raylib-extras/rlImGui.git
+[submodule "vendor/imgui"]
+	path = vendor/imgui
+	url = https://github.com/ocornut/imgui

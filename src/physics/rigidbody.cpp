@@ -1,35 +1,15 @@
 #include "rigidbody.hpp"
 #include "../entity/entity.hpp"
 
-struct CollisionResult {
-    bool hit;
-    float normal_x;
-    float normal_y;
-    float depth_x;
-    float depth_y;
-};
+#include <iostream>
 
-static CollisionResult resolve_aabb(const GameObject& a, const GameObject& b) {
-    float overlap_left = (b.position.x + b.dimensions.x) - a.position.x;
-    float overlap_right = (a.position.x + a.dimensions.x) - b.position.x;
-    float overlap_top = (b.position.y + b.dimensions.y) - a.position.y;
-    float overlap_bot = (a.position.y + a.dimensions.y) - b.position.y;
-
-    bool hit = overlap_left > 0 && overlap_right > 0 && overlap_top > 0 && overlap_bot > 0;
-    if (!hit) return {false};
-
-    // pick the axis with minimum penetration
-    float min_x = overlap_left < overlap_right ? overlap_left : overlap_right;
-    float min_y = overlap_top < overlap_bot ? overlap_top : overlap_bot;
-
-    float nx = 0.0f, ny = 0.0f;
-    if (min_x < min_y) {
-        nx = overlap_left < overlap_right ? 1.0f : -1.0f;
-    } else {
-        ny = overlap_bot < overlap_top ? 1.0f : -1.0f;
-    }
-
-    return {true, nx, ny, min_x, min_y};
+static bool aabb(const GameObject& a, const GameObject& b) {
+    return !(
+        a.position.x + a.dimensions.x <= b.position.x ||
+        a.position.x >= b.position.x + b.dimensions.x ||
+        a.position.y + a.dimensions.y <= b.position.y ||
+        a.position.y >= b.position.y + b.dimensions.y
+    );
 }
 
 void RigidBody::simulate() {
@@ -37,37 +17,55 @@ void RigidBody::simulate() {
 
     float gravity = GRAVITY;
 
-    if (entity->velocity.y > 0.0f) {
-        gravity *= FALL_GRAVITY_MULT;
-    }
-
+    entity->velocity.x *= FRICTION * game.fixed_timestep;
     entity->velocity.y += gravity * game.fixed_timestep;
 
+    // resolve x
+    entity->position.x += entity->velocity.x;
+
     for (const auto& object : game.m_objects) {
-        if (object == this->entity) {
-            continue;
+        if (object == this->entity) continue;
+        if (!aabb(*entity, *object)) continue;
+
+        float overlap_left  = (object->position.x + object->dimensions.x) - entity->position.x;
+        float overlap_right = (entity->position.x + entity->dimensions.x) - object->position.x;
+
+        if (overlap_left < overlap_right) {
+            entity->position.x += overlap_left;
+        } else {
+            entity->position.x -= overlap_right;
         }
 
-        grounded = false;
+        entity->velocity.x = 0.0f;
 
-        // TODO: swept aabb would prob be better but i have no idea how it works so
-        // this will have to do it
-        auto col = resolve_aabb(*entity, *object);
-        if (!col.hit) continue;
+        if (on_hit) {
+            on_hit(object);
+        }
+    }
 
-        if (col.normal_y > 0.0f) {
-            // std::cout << "hit top of object" << "\n";
+    grounded = false;
+
+    // resolve y
+    entity->position.y += entity->velocity.y * game.fixed_timestep;
+
+    for (const auto& object : game.m_objects) {
+        if (object == this->entity) continue;
+        if (!aabb(*entity, *object)) continue;
+
+        float overlap_top = (object->position.y + object->dimensions.y) - entity->position.y;
+        float overlap_bot = (entity->position.y + entity->dimensions.y) - object->position.y;
+
+        if (overlap_bot < overlap_top) {
+            entity->position.y -= overlap_bot;
             entity->velocity.y = 0.0f;
-            entity->position.y -= col.depth_y;
             grounded = true;
-        } else if (col.normal_y < 0.0f) {
-            // std::cout << "hit ceiling" << "\n";
+        } else {
+            entity->position.y += overlap_top;
             entity->velocity.y = 0.0f;
-            entity->position.y += col.depth_y;
-        } else if (col.normal_x != 0.0f) {
-            // std::cout << "hit side wall" << "\n";
-            entity->velocity.x = 0.0f;
-            entity->position.x -= col.normal_x * col.depth_x;
+        }
+
+        if (on_hit) {
+            on_hit(object);
         }
     }
 }

@@ -1,9 +1,12 @@
 #include "game.hpp"
 #include "../entity/player.hpp"
 #include "../physics/rigidbody.hpp"
-#include "../entity/platform.hpp"
+#include "../entity/world/platform.hpp"
+#include "../entity/world/spike.hpp"
+#include "../utils/math.hpp"
 
 #include <iostream>
+#include <rlImGui.h>
 #include <raylib.h>
 
 GameObject::GameObject() {
@@ -15,6 +18,8 @@ GameObject::~GameObject() {
 }
 
 void GameObject::load_texture(const char* location) {
+    if (texture.id) UnloadTexture(texture);
+
     texture = LoadTexture(location);
 
     dimensions.x = static_cast<float>(texture.width);
@@ -22,8 +27,7 @@ void GameObject::load_texture(const char* location) {
 }
 
 Game::Game() {
-    // setup player object
-    player = new Player();
+    ui.mode = UIMode::MENU;
 
     window.title = "dash";
     window.width = 1280;
@@ -31,24 +35,43 @@ Game::Game() {
 
     camera = {0};
     camera.rotation = 0.0f;
-    camera.zoom = 2.0f;
+    camera.zoom = 3.0f;
 
     // TEMP:
-    floor = new Platform(128, 10);
+    auto floor = new Platform(1024 * 2, 10);
     floor->position.x = 0.0f;
     floor->position.y = 100.0f;
 
-    ui.state |= UIState::PLAYFIELD;
+    auto spike1 = new Spike(3);
+    spike1->position.y = 100.0f - 12.0f;
+    spike1->position.x = 350.0f;
+
+    auto spike2 = new Spike(2);
+    spike2->position.y = 100.0f - 12.0f;
+    spike2->position.x = 650.0f;
+
+    auto spike3 = new Spike(3);
+    spike3->position.y = 100.0f - 12.0f;
+    spike3->position.x = 900.0f;
+
+    auto spike4 = new Spike(2);
+    spike4->position.y = 100.0f - 12.0f;
+    spike4->position.x = 1100.0f;
+
+    auto spike5 = new Spike(2);
+    spike5->position.y = 100.0f - 12.0f;
+    spike5->position.x = 1250.0f;
+
+    auto spike6 = new Spike(2);
+    spike6->position.y = 100.0f - 12.0f;
+    spike6->position.x = 1450.0f;
 
     for (int i = 0; i < 256; i++) {
-        float width = 60;
-        float height = 140;
-        unsigned char r = std::rand() % 256;
-        unsigned char g = std::rand() % 256;
-        unsigned char b = std::rand() % 256;
+        float width = 32;
+        float height = width * 3;
 
-        Rectangle rect{i * width + (i * 15.0f), 10.0f, width, height};
-        Color color{r, g, b, 255};
+        Rectangle rect{i * width + (i * 10.0f), 10.0f, width, height};
+        Color color{0, 255, 0, 255};
 
         rects.push_back({rect, color});
     }
@@ -59,9 +82,27 @@ Game::~Game() {
 
 void Game::initialize() {
     InitWindow(window.width, window.height, window.title.c_str());
+    InitAudioDevice();
+
     SetTargetFPS(60);
 
+    rlImGuiSetup(true);
+
+    // TEMP:
+    explosion = LoadSound("resources/songs/creeper.mp3");
+
+    test_level_music = LoadMusicStream("resources/songs/fireman.mp3");
+    SetMusicPan(test_level_music, 0.0f);
+    SetMusicVolume(test_level_music, 0.5f);
+
+    player = new Player();
+    player->should_lock_in_horizontally = true;
+    player->position.y = 100.0f - player->dimensions.y;
+    // ----
+
     while (!WindowShouldClose()) {
+        UpdateMusicStream(test_level_music);
+
         m_accumulator += GetFrameTime();
 
         while (m_accumulator >= fixed_timestep) {
@@ -74,37 +115,56 @@ void Game::initialize() {
         BeginDrawing();
         {
             ClearBackground({0, 0, 0, 0});
-
-            BeginMode2D(camera);
-            {
-                render();
-            }
-            EndMode2D();
+            render();
         }
         EndDrawing();
     }
 
+    rlImGuiShutdown();
     CloseWindow();
 }
 
 void Game::simulate() {
-    if (!ui.is_on_playfield()) return;
+    if (IsKeyDown(KEY_R)) {
+        player->load_texture("resources/sprites/square.png");
+        SeekMusicStream(test_level_music, 0.0f);
+        paused = false;
+        player->position = { 0, 0 };
+        player->velocity = { 0, 0 };
+    }
+
+    if (paused) return;
+    if (ui.mode != UIMode::PLAYFIELD) return;
 
     player->rb->simulate();
     player->movement();
 
-    camera.target = {0, 0};
+    camera.target = {
+        d_math::lerp(camera.target.x, player->position.x + 5.0f, 0.2f),
+        0.0f
+    };
+
     camera.offset = {player->dimensions.x + 20.0f, player->dimensions.y + 40.0f};
 }
 
 void Game::render() {
-    // TEMP:
-    for (const auto& rect : rects) {
-        DrawRectangleRec(rect.rect, rect.color);
+    if (ui.mode == UIMode::MENU) {
+        ui.render_main_menu();
+    } else if (ui.mode == UIMode::PLAYFIELD) {
+        BeginMode2D(camera);
+        {
+            // TEMP:
+            for (const auto& rect : rects) {
+                DrawRectangleRec(rect.rect, rect.color);
+            }
+            // -----
+
+            for (const auto& object : m_objects) {
+                object->render();
+            }
+
+            player->render();
+        }
+        EndMode2D();
     }
-
-    floor->render();
-    // -----
-
-    player->render();
 }

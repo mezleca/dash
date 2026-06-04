@@ -1,9 +1,10 @@
 #include "platform.hpp"
-#include "../physics/rigidbody.hpp"
+#include "../../physics/rigidbody.hpp"
 
 #include <raylib.h>
 
 Platform::Platform(float width, float height) {
+    name = "platform";
     rb->is_static = true;
 
     // TEMP:
@@ -12,5 +13,5 @@ Platform::Platform(float width, float height) {
 }
 
 void Platform::render() {
-    DrawRectangleV(position, dimensions, {255, 255, 255, 255});
+    DrawRectangleV(position, dimensions, {0, 120, 255, 255});
 }

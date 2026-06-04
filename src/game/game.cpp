@@ -1,21 +1,44 @@
 #include "game.hpp"
+#include "../entity/player.hpp"
+#include "../physics/rigidbody.hpp"
+#include "../entity/platform.hpp"
 
+#include <iostream>
 #include <raylib.h>
-#include <vector>
+
+GameObject::GameObject() {
+    game.add_game_object(this);
+}
+
+GameObject::~GameObject() {
+    game.remove_game_object(this);
+}
+
+void GameObject::load_texture(const char* location) {
+    texture = LoadTexture(location);
+
+    dimensions.x = static_cast<float>(texture.width);
+    dimensions.y = static_cast<float>(texture.height);
+}
 
 Game::Game() {
+    // setup player object
+    player = new Player();
+
     window.title = "dash";
     window.width = 1280;
     window.height = 720;
 
     camera = {0};
     camera.rotation = 0.0f;
-    camera.zoom = 5.0f;
+    camera.zoom = 2.0f;
 
     // TEMP:
+    floor = new Platform(128, 10);
+    floor->position.x = 0.0f;
+    floor->position.y = 100.0f;
+
     ui.state |= UIState::PLAYFIELD;
-    player.width = 32;
-    player.height = 32;
 
     for (int i = 0; i < 256; i++) {
         float width = 60;
@@ -24,7 +47,7 @@ Game::Game() {
         unsigned char g = std::rand() % 256;
         unsigned char b = std::rand() % 256;
 
-        Rectangle rect{i * width + 30.0f, 10.0f, width, height};
+        Rectangle rect{i * width + (i * 15.0f), 10.0f, width, height};
         Color color{r, g, b, 255};
 
         rects.push_back({rect, color});
@@ -39,14 +62,14 @@ void Game::initialize() {
     SetTargetFPS(60);
 
     while (!WindowShouldClose()) {
-        accumulator += GetFrameTime();
+        m_accumulator += GetFrameTime();
 
-        while (accumulator >= fixed_timestep) {
-            accumulator -= fixed_timestep;
+        while (m_accumulator >= fixed_timestep) {
+            m_accumulator -= fixed_timestep;
             simulate();
         }
 
-        alpha = accumulator / fixed_timestep;
+        alpha = m_accumulator / fixed_timestep;
 
         BeginDrawing();
         {
@@ -67,14 +90,11 @@ void Game::initialize() {
 void Game::simulate() {
     if (!ui.is_on_playfield()) return;
 
-    player.last_x = player.position.x;
-    player.last_y = player.position.y;
+    player->rb->simulate();
+    player->movement();
 
-    player.rb->simulate();
-    player.movement();
-
-    camera.target = player.position;
-    camera.offset = (Vector2){static_cast<float>(player.width) + 20.0f, static_cast<float>(player.height) + 40.0f};
+    camera.target = {0, 0};
+    camera.offset = {player->dimensions.x + 20.0f, player->dimensions.y + 40.0f};
 }
 
 void Game::render() {
@@ -83,5 +103,8 @@ void Game::render() {
         DrawRectangleRec(rect.rect, rect.color);
     }
 
-    player.render();
+    floor->render();
+    // -----
+
+    player->render();
 }

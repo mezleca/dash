@@ -14,8 +14,8 @@ CWD = Path(__file__).resolve().parent
 SYSTEM = platform.system()
 
 BUILD_DIR = CWD / "build"
+RESOURCES_DIR = CWD / "resources"
 BINARY_NAME = "dash"
-
 
 def run(cmd: Sequence[str], env: dict[str, str] | None = None, check: bool = True) -> int:
     print(f"exec: {subprocess.list2cmdline(list(cmd))}")
@@ -28,10 +28,8 @@ def run(cmd: Sequence[str], env: dict[str, str] | None = None, check: bool = Tru
 
     return result.returncode
 
-
 def tool_exists(tool: str) -> bool:
     return shutil.which(tool) is not None
-
 
 def require_tool(tool: str) -> None:
     if tool_exists(tool):
@@ -40,17 +38,14 @@ def require_tool(tool: str) -> None:
     print(f"{tool} not found in PATH")
     sys.exit(1)
 
-
 def get_cpu_count() -> int:
     return os.cpu_count() or 4
-
 
 def get_cmake_build_type(build_type: str) -> str:
     if build_type == "debug":
         return "Debug"
 
     return "Release"
-
 
 def read_cached_build_type() -> str | None:
     cache_path = BUILD_DIR / "CMakeCache.txt"
@@ -64,10 +59,8 @@ def read_cached_build_type() -> str | None:
 
     return None
 
-
 def is_build_configured() -> bool:
     return (BUILD_DIR / "CMakeCache.txt").exists() and (BUILD_DIR / "build.ninja").exists()
-
 
 def get_source_files() -> list[str]:
     patterns = ("*.c", "*.cc", "*.cpp", "*.cxx", "*.h", "*.hh", "*.hpp", "*.hxx")
@@ -77,7 +70,6 @@ def get_source_files() -> list[str]:
         files.extend((CWD / "src").rglob(pattern))
 
     return [str(path) for path in sorted(files)]
-
 
 def configure(build_type: str) -> int:
     require_tool("cmake")
@@ -107,7 +99,6 @@ def configure(build_type: str) -> int:
 
     return run(cmd)
 
-
 def build(build_type: str | None) -> int:
     selected_build_type = build_type or read_cached_build_type() or "debug"
 
@@ -122,7 +113,6 @@ def build(build_type: str | None) -> int:
         str(get_cpu_count()),
     ])
 
-
 def format_code() -> int:
     require_tool("clang-format")
 
@@ -134,7 +124,6 @@ def format_code() -> int:
 
     return run(["clang-format", "-i", *source_files])
 
-
 def clean() -> int:
     if not BUILD_DIR.exists():
         print("build directory doesn't exist")
@@ -142,7 +131,6 @@ def clean() -> int:
 
     shutil.rmtree(BUILD_DIR)
     return 0
-
 
 def init() -> int:
     if (CWD / ".gitmodules").exists():
@@ -153,7 +141,6 @@ def init() -> int:
     require_tool("clang-format")
 
     return 0
-
 
 def run_binary() -> int:
     candidates = [
@@ -169,8 +156,9 @@ def run_binary() -> int:
         print("binary not found")
         return 1
 
-    return run([str(binary_path)], check=False)
+    shutil.copytree(RESOURCES_DIR, BUILD_DIR / "resources", dirs_exist_ok=True)
 
+    return run([str(binary_path)], check=False)
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="project helper script")
@@ -195,7 +183,6 @@ def main() -> None:
         exit_code = run_binary()
 
     sys.exit(exit_code)
-
 
 if __name__ == "__main__":
     main()

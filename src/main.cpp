@@ -4,6 +4,6 @@
 int main() {
     std::srand(std::time(0));
 
-    g_game.initialize();
+    game.initialize();
     return 0;
 }

@@ -1,17 +1,34 @@
 #pragma once
 
 #include "../ui/ui.hpp"
-#include "../player/player.hpp"
 
 #include <raylib.h>
 #include <string>
+#include <cstdint>
 #include <utility>
 #include <vector>
+
+struct Player;
+struct Platform;
 
 struct GameWindow {
     std::string title;
     float width;
     float height;
+};
+
+struct GameObject {
+    explicit GameObject();
+    ~GameObject();
+
+    void load_texture(const char* location);
+
+    virtual void render() = 0;
+
+    Vector2 position;
+    Vector2 dimensions;
+    Texture2D texture;
+    uint32_t id = 0;
 };
 
 struct PlaceholderBuild {
@@ -25,15 +42,19 @@ struct Game {
     ~Game();
 
     GameWindow window;
+    Player* player;
     UI ui;
-    Player player;
     Camera2D camera;
+
+    std::vector<GameObject*> m_objects;
+
+    // TEMP STUFF ----
+    std::vector<PlaceholderBuild> rects;
+    Platform* floor;
+    // ------
 
     const float fixed_timestep = 1.0f / 60.0f;
     float alpha = 0.0f;
-
-    // TEMP:
-    std::vector<PlaceholderBuild> rects;
 
     // this will def fuck me later
     void add_game_object(GameObject* obj) {
@@ -52,6 +73,5 @@ struct Game {
     void render();
 
   private:
-    float accumulator;
-    std::vector<GameObject*> m_objects;
-} inline g_game;
+    float m_accumulator;
+} inline game;

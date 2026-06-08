@@ -1,41 +1,35 @@
 #include "rigidbody.hpp"
-#include "../entity/entity.hpp"
-
-#include <algorithm>
-#include <iostream>
+#include "../game/game.hpp"
 
 static bool aabb(const GameObject& a, const GameObject& b) {
-    return !(
-        a.position.x + a.dimensions.x <= b.position.x ||
-        a.position.x >= b.position.x + b.dimensions.x ||
-        a.position.y + a.dimensions.y <= b.position.y ||
-        a.position.y >= b.position.y + b.dimensions.y
-    );
+    return !(a.position.x + a.dimensions.x <= b.position.x || a.position.x >= b.position.x + b.dimensions.x ||
+             a.position.y + a.dimensions.y <= b.position.y || a.position.y >= b.position.y + b.dimensions.y);
 }
 
 void RigidBody::simulate() {
     if (is_static) return;
 
-    entity->velocity.x *= FRICTION * game.fixed_timestep;
-    entity->velocity.y += GRAVITY * game.fixed_timestep; // TODO: clamp
+    obj->velocity.x *= FRICTION * game.fixed_timestep;
+    obj->velocity.y += GRAVITY * game.fixed_timestep; // TODO: clamp
 
     // resolve x
-    entity->position.x += entity->velocity.x;
+    obj->position.x += obj->velocity.x;
 
     for (const auto& object : game.m_objects) {
-        if (object == this->entity) continue;
-        if (!aabb(*entity, *object)) continue;
+        if (object == this->obj) continue;
+        if (!object->visible) continue;
+        if (!aabb(*object, *object)) continue;
 
-        float overlap_left  = (object->position.x + object->dimensions.x) - entity->position.x;
-        float overlap_right = (entity->position.x + entity->dimensions.x) - object->position.x;
+        float overlap_left = (object->position.x + object->dimensions.x) - obj->position.x;
+        float overlap_right = (obj->position.x + obj->dimensions.x) - object->position.x;
 
         if (overlap_left < overlap_right) {
-            entity->position.x += overlap_left;
+            obj->position.x += overlap_left;
         } else {
-            entity->position.x -= overlap_right;
+            obj->position.x -= overlap_right;
         }
 
-        entity->velocity.x = 0.0f;
+        obj->velocity.x = 0.0f;
 
         if (on_hit) {
             on_hit(object);
@@ -45,22 +39,23 @@ void RigidBody::simulate() {
     grounded = false;
 
     // resolve y
-    entity->position.y += entity->velocity.y * game.fixed_timestep;
+    obj->position.y += obj->velocity.y * game.fixed_timestep;
 
     for (const auto& object : game.m_objects) {
-        if (object == this->entity) continue;
-        if (!aabb(*entity, *object)) continue;
+        if (object == this->obj) continue;
+        if (!object->visible) continue;
+        if (!aabb(*obj, *object)) continue;
 
-        float overlap_top = (object->position.y + object->dimensions.y) - entity->position.y;
-        float overlap_bot = (entity->position.y + entity->dimensions.y) - object->position.y;
+        float overlap_top = (object->position.y + object->dimensions.y) - obj->position.y;
+        float overlap_bot = (obj->position.y + obj->dimensions.y) - object->position.y;
 
         if (overlap_bot < overlap_top) {
-            entity->position.y -= overlap_bot;
-            entity->velocity.y = 0.0f;
+            obj->position.y -= overlap_bot;
+            obj->velocity.y = 0.0f;
             grounded = true;
         } else {
-            entity->position.y += overlap_top;
-            entity->velocity.y = 0.0f;
+            obj->position.y += overlap_top;
+            obj->velocity.y = 0.0f;
         }
 
         if (on_hit) {

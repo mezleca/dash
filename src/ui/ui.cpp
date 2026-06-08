@@ -32,10 +32,32 @@ void UI::render_main_menu() {
 
                 ImGui::SetCursorPosX(ImGui::GetCursorPosX() + off);
                 ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f);
+
+                static const char* selected_level;
+
+                // TODO: scrollable layout instead of a single combo box
+                if (ImGui::BeginCombo("level", selected_level)) {
+                    for (const auto& level : game.levels) {
+                        const char* level_id = level.location.c_str();
+                        ImGui::PushID(level_id);
+
+                        if (ImGui::Selectable(level.name.c_str(), selected_level == level_id,
+                                              ImGuiSelectableFlags_SelectOnNav)) {
+                            selected_level = level_id;
+                        }
+
+                        if (selected_level == level_id) {
+                            ImGui::SetItemDefaultFocus();
+                        }
+
+                        ImGui::PopID();
+                    }
+                    ImGui::EndCombo();
+                }
+
                 if (ImGui::Button("play")) {
                     std::cout << "changing mode to playfield\n";
                     mode = UIMode::PLAYFIELD;
-                    PlayMusicStream(game.test_level_music);
                 }
             }
             ImGui::EndChild();

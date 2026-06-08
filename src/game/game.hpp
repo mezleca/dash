@@ -1,15 +1,19 @@
 #pragma once
 
 #include "../ui/ui.hpp"
+#include "object.hpp"
 
-#include <raylib.h>
+#include <nlohmann/json.hpp>
 #include <string>
-#include <cstdint>
 #include <utility>
+#include <filesystem>
 #include <vector>
 
-constexpr Vector2 SPRITE_SIZE_HIGH = { 128, 128 };
-constexpr Vector2 SPRITE_SIZE_MEDIUM = { 64, 64 };
+const std::filesystem::path RESOURCES_LOCATION = std::filesystem::path(GetApplicationDirectory()) / "resources";
+const std::filesystem::path LEVELS_LOCATION = RESOURCES_LOCATION / "levels" / "data.json";
+
+constexpr Vector2 SPRITE_SIZE_HIGH = {128, 128};
+constexpr Vector2 SPRITE_SIZE_MEDIUM = {64, 64};
 
 struct Player;
 struct Spike;
@@ -21,25 +25,22 @@ struct GameWindow {
     float height;
 };
 
-struct GameObject {
-    explicit GameObject();
-    ~GameObject();
-
+struct MinimalLevelData {
+    std::filesystem::path location;
     std::string name;
-
-    Texture2D texture;
-    Vector2 position;
-    Vector2 dimensions;
-    uint32_t id = 0;
-
-    void load_texture(const char* location);
-    virtual void render() = 0;
 };
 
-struct PlaceholderBuild {
-    Rectangle rect;
-    Color color;
-};
+inline static void to_json(nlohmann::json& j, const MinimalLevelData& l) {
+    j = {
+        {"location", l.location},
+        {"name", l.name},
+    };
+}
+
+inline static void from_json(const nlohmann::json& j, MinimalLevelData& l) {
+    j.at("location").get_to(l.location);
+    j.at("name").get_to(l.name);
+}
 
 struct Game {
   public:
@@ -52,12 +53,7 @@ struct Game {
     Camera2D camera;
 
     std::vector<GameObject*> m_objects;
-
-    // TEMP STUFF ----
-    std::vector<PlaceholderBuild> rects;
-    Music test_level_music;
-    Sound explosion;
-    // ------
+    std::vector<MinimalLevelData> levels;
 
     const float fixed_timestep = 1.0f / 60.0f;
     float alpha = 0.0f;
@@ -79,6 +75,10 @@ struct Game {
     void initialize();
     void simulate();
     void render();
+
+    void load_level(std::string_view location, UIMode mode);
+    void load_levels();
+    void save_levels();
 
   private:
     float m_accumulator;

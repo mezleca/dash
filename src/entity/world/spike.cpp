@@ -3,8 +3,7 @@
 
 #include <raylib.h>
 
-Spike::Spike(float _ammount) {
-    name = "spike";
+Spike::Spike(float _ammount) : GameObject(ObjectType::SPIKE) {
     rb->is_static = true;
 
     ammount = _ammount;
@@ -14,19 +13,17 @@ Spike::Spike(float _ammount) {
 }
 
 void Spike::render() {
+    if (!visible) return;
+
     float width = dimensions.x / ammount;
 
     // Debug
-    //DrawRectangleV(position, dimensions, RED);
+    // DrawRectangleV(position, dimensions, RED);
 
     for (int i = 0; i < ammount; i++) {
         float spacing = i == 0 ? 0 : i * width;
 
-        DrawTriangle(
-            {position.x + spacing + width / 2, position.y},
-            {position.x + spacing, position.y + dimensions.y},
-            {position.x + spacing + width, position.y + dimensions.y},
-            {255, 0, 0, 255}
-        );
+        DrawTriangle({position.x + spacing + width / 2, position.y}, {position.x + spacing, position.y + dimensions.y},
+                     {position.x + spacing + width, position.y + dimensions.y}, {255, 0, 0, 255});
     }
 }

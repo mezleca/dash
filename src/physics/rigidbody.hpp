@@ -7,18 +7,18 @@ constexpr float GRAVITY = 5332.5f;
 constexpr float FALL_MAX_SPEED = 2237.0f;
 constexpr float FRICTION = 0.65f;
 
-struct Entity;
 struct GameObject;
 
 struct RigidBody {
   public:
-    explicit RigidBody(Entity* ent) : entity(ent) {
+    explicit RigidBody(GameObject* _obj) : obj(_obj) {
     }
 
     std::function<void(GameObject*)> on_hit = nullptr;
 
-    Entity* entity;
-    GameObject* last_hit_obj;
+    GameObject* obj;
+    GameObject* last_hit;
+
     bool is_static = false;
     bool grounded = false;
 

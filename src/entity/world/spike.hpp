@@ -1,12 +1,12 @@
 #pragma once
 
-#include "../entity.hpp"
+#include "../../game/object.hpp"
 
-struct Spike : public Entity {
+struct Spike : public GameObject {
     explicit Spike(float ammount);
 
     void render() override;
 
-private:
+  private:
     float ammount = 0;
 };

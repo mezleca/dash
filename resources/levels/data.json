@@ -1,0 +1,12 @@
+{
+    "levels": [
+        {
+            "name": "fireman",
+            "location": "fireman/level.json"
+        },
+        {
+            "name": "unknown",
+            "location": "unkown"
+        }
+    ]
+}

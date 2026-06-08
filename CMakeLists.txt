@@ -16,6 +16,7 @@ set(GLFW_BUILD_WAYLAND ON CACHE BOOL "" FORCE)
 set(GLFW_BUILD_X11 OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(vendor/raylib)
+add_subdirectory(vendor/json)
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp")
 file(GLOB_RECURSE HEADERS CONFIGURE_DEPENDS "src/*.hpp")
@@ -35,4 +36,5 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     raylib
+    nlohmann_json
 )

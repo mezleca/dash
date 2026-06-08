@@ -1,8 +1,8 @@
 #pragma once
 
-#include "../entity.hpp"
+#include "../../game/object.hpp"
 
-struct Platform : public Entity {
+struct Platform : public GameObject {
     explicit Platform(float width, float height);
 
     void render() override;

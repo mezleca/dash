@@ -1,13 +1,13 @@
 #pragma once
 
-#include "entity.hpp"
+#include "../game/object.hpp"
 
-struct Player : public Entity {
+struct Player : public GameObject {
     explicit Player();
     ~Player();
 
     float m_rotation = 0.0f;
-    GameObject* last_floor;
+    GameObject* last_platform;
 
     bool should_lock_in_horizontally = false;
 

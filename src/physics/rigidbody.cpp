@@ -1,6 +1,7 @@
 #include "rigidbody.hpp"
 #include "../entity/entity.hpp"
 
+#include <algorithm>
 #include <iostream>
 
 static bool aabb(const GameObject& a, const GameObject& b) {
@@ -15,10 +16,8 @@ static bool aabb(const GameObject& a, const GameObject& b) {
 void RigidBody::simulate() {
     if (is_static) return;
 
-    float gravity = GRAVITY;
-
     entity->velocity.x *= FRICTION * game.fixed_timestep;
-    entity->velocity.y += gravity * game.fixed_timestep;
+    entity->velocity.y += GRAVITY * game.fixed_timestep; // TODO: clamp
 
     // resolve x
     entity->position.x += entity->velocity.x;

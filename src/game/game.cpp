@@ -35,36 +35,36 @@ Game::Game() {
 
     camera = {0};
     camera.rotation = 0.0f;
-    camera.zoom = 3.0f;
+    camera.zoom = 1.2f;
 
     // TEMP:
-    auto floor = new Platform(1024 * 2, 10);
+    auto floor = new Platform(2056 * 2, 30);
     floor->position.x = 0.0f;
     floor->position.y = 100.0f;
 
     auto spike1 = new Spike(3);
-    spike1->position.y = 100.0f - 12.0f;
-    spike1->position.x = 350.0f;
+    spike1->position.y = 100.0f - spike1->dimensions.y;
+    spike1->position.x = spike1->dimensions.x + 350.0f;
 
     auto spike2 = new Spike(2);
-    spike2->position.y = 100.0f - 12.0f;
-    spike2->position.x = 650.0f;
+    spike2->position.y = 100.0f - spike1->dimensions.y;
+    spike2->position.x = spike1->dimensions.x + 700.0f;
 
     auto spike3 = new Spike(3);
-    spike3->position.y = 100.0f - 12.0f;
-    spike3->position.x = 900.0f;
+    spike3->position.y = 100.0f - spike1->dimensions.y;
+    spike3->position.x = spike1->dimensions.x + 900.0f;
 
     auto spike4 = new Spike(2);
-    spike4->position.y = 100.0f - 12.0f;
-    spike4->position.x = 1100.0f;
+    spike4->position.y = 100.0f - spike1->dimensions.y;
+    spike4->position.x = spike1->dimensions.x + 1100.0f;
 
     auto spike5 = new Spike(2);
-    spike5->position.y = 100.0f - 12.0f;
-    spike5->position.x = 1250.0f;
+    spike5->position.y = 100.0f - spike1->dimensions.y;
+    spike5->position.x = spike1->dimensions.x + 1250.0f;
 
     auto spike6 = new Spike(2);
-    spike6->position.y = 100.0f - 12.0f;
-    spike6->position.x = 1450.0f;
+    spike6->position.y = 100.0f - spike1->dimensions.y;
+    spike6->position.x = spike1->dimensions.x + 1550.0f;
 
     for (int i = 0; i < 256; i++) {
         float width = 32;
@@ -96,7 +96,7 @@ void Game::initialize() {
     SetMusicVolume(test_level_music, 0.5f);
 
     player = new Player();
-    player->should_lock_in_horizontally = true;
+    player->should_lock_in_horizontally = false;
     player->position.y = 100.0f - player->dimensions.y;
     // ----
 
@@ -126,7 +126,7 @@ void Game::initialize() {
 
 void Game::simulate() {
     if (IsKeyDown(KEY_R)) {
-        player->load_texture("resources/sprites/square.png");
+        player->load_texture("resources/sprites/default.png");
         SeekMusicStream(test_level_music, 0.0f);
         paused = false;
         player->position = { 0, 0 };
@@ -140,8 +140,8 @@ void Game::simulate() {
     player->movement();
 
     camera.target = {
-        d_math::lerp(camera.target.x, player->position.x + 5.0f, 0.2f),
-        0.0f
+        d_math::lerp(camera.target.x, player->position.x + 20.0f, 0.2f),
+        player->position.y
     };
 
     camera.offset = {player->dimensions.x + 20.0f, player->dimensions.y + 40.0f};

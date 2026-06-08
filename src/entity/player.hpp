@@ -6,7 +6,9 @@ struct Player : public Entity {
     explicit Player();
     ~Player();
 
-    float shit_rotation = 360.0f;
+    float m_rotation = 0.0f;
+    GameObject* last_floor;
+
     bool should_lock_in_horizontally = false;
 
     void movement();

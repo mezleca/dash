@@ -3,7 +3,8 @@
 #include <functional>
 
 // TODO: move to the struct?
-constexpr float GRAVITY = 850.0f;
+constexpr float GRAVITY = 5332.5f;
+constexpr float FALL_MAX_SPEED = 2237.0f;
 constexpr float FRICTION = 0.65f;
 
 struct Entity;

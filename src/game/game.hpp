@@ -8,6 +8,9 @@
 #include <utility>
 #include <vector>
 
+constexpr Vector2 SPRITE_SIZE_HIGH = { 128, 128 };
+constexpr Vector2 SPRITE_SIZE_MEDIUM = { 64, 64 };
+
 struct Player;
 struct Spike;
 struct Platform;

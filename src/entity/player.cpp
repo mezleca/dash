@@ -3,20 +3,24 @@
 #include "../game/game.hpp"
 #include "../physics/rigidbody.hpp"
 
+#include <algorithm>
 #include <iostream>
 #include <raylib.h>
 
-const float JUMP_FORCE = 250.0f;
+constexpr float JUMP_FORCE = 1495.5f;
 
 Player::Player() {
-    load_texture("resources/sprites/square.png");
+    load_texture("resources/sprites/default.png");
 
     rb->on_hit = [&](GameObject* obj) {
         if (obj->name == "spike") {
             load_texture("resources/sprites/fireman.png");
             PlaySound(game.explosion);
             game.paused = true;
-            shit_rotation = 0.0f;
+        }
+
+        if (obj->name == "floor") {
+            last_floor = obj;
         }
     };
 }
@@ -41,39 +45,57 @@ void Player::movement() {
         direction = 1;
     }
 
-    velocity.x += direction * 250.0f;
+    velocity.x += direction * 920.0f;
 
     // vertical movement
     if (is_pressing_jump && rb->grounded) {
         velocity.y = -JUMP_FORCE;
+        last_floor = nullptr;
     }
 }
 
 void Player::render() {
-    // TODO: actual rotation on jump
-
     Vector2 interpolated_position = {
         d_math::lerp(previous_position.x, position.x, game.alpha),
         d_math::lerp(previous_position.y, position.y, game.alpha)
     };
 
-    if (game.paused) {
-        shit_rotation = d_math::lerp(shit_rotation, 360.0f, 0.05f);
+    float texture_width = static_cast<float>(texture.width);
+    float texture_height = static_cast<float>(texture.height);
 
-        Rectangle source = { 0.0f, 0.0f, (float)texture.width, (float)texture.height };
-        Rectangle dest = { interpolated_position.x, interpolated_position.y, (float)texture.width, (float)texture.height };
+    Rectangle source = {
+        0.0f,
+        0.0f,
+        texture_width,
+        texture_height
+    };
 
-        Vector2 origin = { (float)texture.width / 2.0f, (float)texture.height / 2.0f };
+    Rectangle dest = {
+        interpolated_position.x + texture_width / 2.0f,
+        interpolated_position.y + texture_height / 2.0f,
+        texture_width,
+        texture_height
+    };
 
-        DrawTexturePro(
-            texture,
-            source,
-            dest,
-            origin,
-            shit_rotation,
-            WHITE
-        );
-    } else {
-        DrawTextureV(texture, interpolated_position, WHITE);
+    Vector2 origin = { texture_width / 2.0f, texture_height / 2.0f };
+
+    if (m_rotation >= 360.0f) {
+        m_rotation = 0.0f;
     }
+
+    if (!rb->grounded) {
+        m_rotation += 180.0f * game.fixed_timestep;
+    } else {
+        float target_angle = std::round(m_rotation / 90.0f) * 90.0f;
+        m_rotation = d_math::lerp(m_rotation, target_angle, 0.2f);
+    }
+
+    DrawTexturePro(
+        texture,
+        source,
+        dest,
+        origin,
+        m_rotation,
+        WHITE
+    );
 }

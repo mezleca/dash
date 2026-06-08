@@ -9,18 +9,18 @@ Spike::Spike(float _ammount) {
 
     ammount = _ammount;
 
-    dimensions.x = ammount * 12.0f;
-    dimensions.y = 12;
+    dimensions.x = ammount * 64.0f;
+    dimensions.y = 64.0f;
 }
 
 void Spike::render() {
     float width = dimensions.x / ammount;
 
     // Debug
-    // DrawRectangleV(position, dimensions, RED);
+    //DrawRectangleV(position, dimensions, RED);
 
     for (int i = 0; i < ammount; i++) {
-        float spacing = i == 0 ? 0 : i * 12.0f;
+        float spacing = i == 0 ? 0 : i * width;
 
         DrawTriangle(
             {position.x + spacing + width / 2, position.y},

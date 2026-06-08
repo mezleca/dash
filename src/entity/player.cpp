@@ -9,7 +9,7 @@ Player::Player() : GameObject(ObjectType::BOX) {
     load_texture("resources/sprites/default.png");
 
     rb->on_hit = [&](GameObject* obj) {
-        if (obj->type == ObjectType::PLAFORM) {
+        if (obj->type == ObjectType::PLATFORM) {
             last_platform = obj;
         }
     };

@@ -3,7 +3,7 @@
 
 #include <raylib.h>
 
-Platform::Platform(float width, float height) : GameObject(ObjectType::PLAFORM) {
+Platform::Platform(float width, float height) : GameObject(ObjectType::PLATFORM) {
     rb->is_static = true;
 
     dimensions.x = width;

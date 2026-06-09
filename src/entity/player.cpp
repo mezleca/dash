@@ -4,8 +4,10 @@
 #include "../physics/rigidbody.hpp"
 
 constexpr float JUMP_FORCE = 1495.5f;
+constexpr float HORIZONTAL_ACCELERATION = 45000.0f / 4.0f;
 
 Player::Player() : GameObject(ObjectType::BOX) {
+    game.add_game_object(this);
     load_texture("resources/sprites/default.png");
 
     rb->on_hit = [&](GameObject* obj) {
@@ -37,7 +39,7 @@ void Player::movement() {
         direction = 1;
     }
 
-    velocity.x += direction * 920.0f;
+    velocity.x += static_cast<float>(direction) * HORIZONTAL_ACCELERATION * game.fixed_timestep;
 
     // vertical movement
     if (is_pressing_jump && rb->grounded) {

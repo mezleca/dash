@@ -3,10 +3,10 @@
 #include "../physics/rigidbody.hpp"
 #include "../utils/math.hpp"
 
+#include <filesystem>
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <rlImGui.h>
-#include <fstream>
 #include <raylib.h>
 #include <string_view>
 
@@ -32,12 +32,14 @@ void Game::initialize() {
     SetTargetFPS(60);
     rlImGuiSetup(true);
 
-    load_levels();
-
-    player = new Player();
-    player->visible = false;
+    // load all levels data (objects will be created only when necessary)
+    load_all_levels();
 
     while (!WindowShouldClose()) {
+        if (m_current_level != nullptr) {
+            UpdateMusicStream(m_current_level->music);
+        }
+
         m_accumulator += GetFrameTime();
 
         while (m_accumulator >= fixed_timestep) {
@@ -59,73 +61,104 @@ void Game::initialize() {
     CloseWindow();
 }
 
-void Game::load_levels() {
+void Game::load_all_levels() {
     std::cout << "[game] loading levels...\n";
 
-    std::ifstream file(LEVELS_LOCATION);
+    // iterate through the levels folder, then read / load all the level files
+    for (const auto& entry : std::filesystem::directory_iterator(LEVELS_LOCATION)) {
+        if (!entry.is_directory()) {
+            continue;
+        }
 
-    if (!file.is_open()) {
-        std::cout << "[game] unable to find " << LEVELS_LOCATION << "\n";
-        return;
+        for (const auto& file : std::filesystem::directory_iterator(entry)) {
+            if (file.path().extension() != ".json") {
+                continue;
+            }
+
+            const char* location = file.path().c_str();
+            std::cout << "[game] found level at " << location << "\n";
+
+            // create new level and load basic metadata
+            DashLevel* level = new DashLevel();
+            level->load(location);
+
+            m_levels.insert({location, level});
+        }
     }
-
-    nlohmann::json j = nlohmann::json::parse(file);
-    levels = j["levels"].get<std::vector<MinimalLevelData>>();
-
-    for (const auto& level : levels) {
-        std::cout << "[game] loaded " << level.name << " data\n";
-    }
-
-    file.close();
-}
-
-void Game::save_levels() {
-    std::cout << "[game] saving " << levels.size() << " levels\n";
-
-    nlohmann::json j = {};
-
-    for (const MinimalLevelData& level : levels) {
-        j["levels"].push_back(level);
-    }
-
-    std::ofstream file(LEVELS_LOCATION);
-
-    file << j.dump(4);
-    file.close();
 }
 
 void Game::load_level(std::string_view location, UIMode mode) {
-    MinimalLevelData* target_level;
-
-    // TOFIX: stupid
-    for (const auto& level : levels) {
-        if (level.location == location) {
-            *target_level = level;
-            break;
-        }
-    }
-
-    if (target_level == nullptr) {
-        std::cout << "[game] failed to load " << location << "\n";
+    if (m_current_level != nullptr) {
+        std::cout << "[game] what the fuck\n";
         return;
     }
 
-    // TODO: load...
+    auto level_it = m_levels.find(location.data());
 
+    if (level_it == m_levels.end()) {
+        std::cout << "[game] failed to find level " << location << "\n";
+        return;
+    }
+
+    DashLevel* level = level_it->second;
+
+    // load level data if needed
+    if (level->m_objects.size() == 0 && !level->m_temp_objects.empty()) {
+        std::cout << "[game] loading data from level " << level->m_name << "\n";
+
+        if (!level->load_objects()) {
+            std::cout << "[game] failed to load level from " << location << "\n";
+            return;
+        }
+    }
+
+    // create / initialize player if needed
+    if (m_player == nullptr) {
+        m_player = new Player();
+        m_player->position = level->m_player_start;
+        std::cout << "\n player start: (" << m_player->position.x << ", " << m_player->position.y << ")\n";
+    }
+
+    // initialize raylib music, etc...
+    std::filesystem::path music_full_locatino = level->m_file.parent_path() / level->m_music_file;
+    level->music = LoadMusicStream(music_full_locatino.c_str());
+    SetMusicPan(level->music, 0.0f);
+    SetMusicVolume(level->music, 0.5f);
+    PlayMusicStream(level->music);
+
+    paused = false;
     ui.mode = mode;
+    m_current_level = level;
+
     std::cout << "loaded " << location << " succefully" << "\n";
+}
+
+void Game::unload_current_level() {
+    if (m_current_level == nullptr) {
+        std::cout << "[game] failed to unload current level (not found)\n";
+        return;
+    }
+
+    StopMusicStream(m_current_level->music);
+    m_current_level->unload();
+
+    delete m_player;
+    delete m_current_level;
+
+    ui.mode = UIMode::MENU;
+    paused = false;
 }
 
 void Game::simulate() {
     if (paused) return;
     if (ui.mode != UIMode::PLAYFIELD) return;
+    if (m_player == nullptr) return;
 
-    player->rb->simulate();
-    player->movement();
+    m_player->movement();
+    m_player->rb->simulate();
 
-    camera.target = {d_math::lerp(camera.target.x, player->position.x + 20.0f, 0.2f), player->position.y};
-
-    camera.offset = {player->dimensions.x + 20.0f, player->dimensions.y + 40.0f};
+    camera.target = {d_math::lerp(camera.target.x, m_player->position.x + 20.0f, 0.2f), m_player->position.y};
+    camera.offset = {m_player->dimensions.x + 20.0f, m_player->dimensions.y + 40.0f};
 }
 
 void Game::render() {

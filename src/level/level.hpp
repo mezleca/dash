@@ -4,27 +4,38 @@
 
 #include <string>
 #include <string_view>
+#include <nlohmann/json.hpp>
 #include <vector>
 
-struct LevelObject {
-    ObjectType m_type;
-    GameObject* m_obj;
-};
-
 struct DashLevel {
-    explicit DashLevel(std::string_view location);
+    explicit DashLevel() {
+    }
 
-    std::vector<LevelObject> objects;
+    std::vector<GameObject*> m_objects;
 
     // metadata
-    std::string m_name;
-    std::string m_filename;
-    std::string m_music_file;
+    nlohmann::json m_temp_objects; // will be parsed / initialized on level load
+    std::filesystem::path m_file;  // runtime
+    std::string m_name;            // from json
+    std::string m_music_file;      // from json
+    Vector2 m_player_start;        // from json
 
     // progress
     float m_current_progress = 0.0f;
 
-    void save();
-    void load(std::string_view location);
+    // game managed shit
+    Music music;
+
+    bool save();
+    bool load(std::string_view location);
+    bool load_objects();
     void unload();
 };
+
+inline static void to_json(nlohmann::json& j, const GameObject* obj) {
+    j = {{"type", obj->type},
+         {"visible", obj->visible},
+         {"texture", obj->texture_location},
+         {"position", obj->position},
+         {"dimensions", obj->dimensions}};
+}

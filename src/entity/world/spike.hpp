@@ -5,8 +5,13 @@
 struct Spike : public GameObject {
     explicit Spike(float ammount);
 
+    float m_ammount = 0;
+
     void render() override;
 
-  private:
-    float ammount = 0;
+    nlohmann::json serialize() const override {
+        auto j = GameObject::serialize();
+        j["spike_ammount"] = m_ammount;
+        return j;
+    }
 };

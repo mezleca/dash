@@ -6,4 +6,8 @@ struct Platform : public GameObject {
     explicit Platform(float width, float height);
 
     void render() override;
+
+    nlohmann::json serialize() const override {
+        return GameObject::serialize();
+    }
 };

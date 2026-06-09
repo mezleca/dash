@@ -1,7 +1,6 @@
 #include "ui.hpp"
 #include "../game/game.hpp"
 
-#include <iostream>
 #include <raylib.h>
 #include <rlImGui.h>
 #include <imgui.h>
@@ -34,16 +33,22 @@ void UI::render_main_menu() {
                 ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f);
 
                 static const char* selected_level;
+                static const char* selected_level_label;
 
                 // TODO: scrollable layout instead of a single combo box
-                if (ImGui::BeginCombo("level", selected_level)) {
-                    for (const auto& level : game.levels) {
-                        const char* level_id = level.location.c_str();
+                if (ImGui::BeginCombo("level", selected_level_label)) {
+                    for (const auto& level_it : game.m_levels) {
+                        auto* level = level_it.second;
+
+                        const char* level_id = level->m_file.c_str();
+                        const char* level_name = level->m_name.c_str();
+
                         ImGui::PushID(level_id);
 
-                        if (ImGui::Selectable(level.name.c_str(), selected_level == level_id,
+                        if (ImGui::Selectable(level_name, selected_level == level_id,
                                               ImGuiSelectableFlags_SelectOnNav)) {
                             selected_level = level_id;
+                            selected_level_label = level_name;
                         }
 
                         if (selected_level == level_id) {
@@ -56,8 +61,9 @@ void UI::render_main_menu() {
                 }
 
                 if (ImGui::Button("play")) {
-                    std::cout << "changing mode to playfield\n";
-                    mode = UIMode::PLAYFIELD;
+                    if (selected_level != nullptr) {
+                        game.load_level(selected_level, UIMode::PLAYFIELD);
+                    }
                 }
             }
             ImGui::EndChild();

@@ -13,4 +13,8 @@ struct Player : public GameObject {
 
     void movement();
     void render() override;
+
+    nlohmann::json serialize() const override {
+        return GameObject::serialize();
+    }
 };

@@ -1,6 +1,8 @@
 #include "rigidbody.hpp"
 #include "../game/game.hpp"
 
+#include <algorithm>
+
 static bool aabb(const GameObject& a, const GameObject& b) {
     return !(a.position.x + a.dimensions.x <= b.position.x || a.position.x >= b.position.x + b.dimensions.x ||
              a.position.y + a.dimensions.y <= b.position.y || a.position.y >= b.position.y + b.dimensions.y);
@@ -9,16 +11,19 @@ static bool aabb(const GameObject& a, const GameObject& b) {
 void RigidBody::simulate() {
     if (is_static) return;
 
-    obj->velocity.x *= FRICTION * game.fixed_timestep;
-    obj->velocity.y += GRAVITY * game.fixed_timestep; // TODO: clamp
+    const float horizontal_damping = std::max(0.0f, 1.0f - HORIZONTAL_DAMPING * game.fixed_timestep);
+
+    obj->velocity.x *= horizontal_damping;
+    obj->velocity.y += GRAVITY * game.fixed_timestep;
+    obj->velocity.y = std::min(obj->velocity.y, FALL_MAX_SPEED);
 
     // resolve x
-    obj->position.x += obj->velocity.x;
+    obj->position.x += obj->velocity.x * game.fixed_timestep;
 
     for (const auto& object : game.m_objects) {
         if (object == this->obj) continue;
         if (!object->visible) continue;
-        if (!aabb(*object, *object)) continue;
+        if (!aabb(*obj, *object)) continue;
 
         float overlap_left = (object->position.x + object->dimensions.x) - obj->position.x;
         float overlap_right = (obj->position.x + obj->dimensions.x) - object->position.x;

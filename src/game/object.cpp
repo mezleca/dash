@@ -3,8 +3,6 @@
 #include "../physics/rigidbody.hpp"
 
 GameObject::GameObject(ObjectType _type) : type(_type) {
-    game.add_game_object(this);
-
     rb = new RigidBody(this);
 
     velocity = {0, 0};
@@ -24,4 +22,6 @@ void GameObject::load_texture(const char* location) {
 
     dimensions.x = static_cast<float>(texture.width);
     dimensions.y = static_cast<float>(texture.height);
+
+    texture_location = location;
 }

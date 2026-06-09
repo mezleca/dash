@@ -2,10 +2,9 @@
 
 #include <functional>
 
-// TODO: move to the struct?
 constexpr float GRAVITY = 5332.5f;
 constexpr float FALL_MAX_SPEED = 2237.0f;
-constexpr float FRICTION = 0.65f;
+constexpr float HORIZONTAL_DAMPING = 12.0f;
 
 struct GameObject;
 

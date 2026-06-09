@@ -1,0 +1,38 @@
+{
+    "name": "fireman",
+    "music_file": "audio2.mp3",
+    "player_start": { "x": 32, "y": 0 },
+    "objects": [
+        {
+            "type": 1,
+            "visible": true,
+            "texture": "",
+            "position": { "x": 0.0, "y": 64.0 },
+            "dimensions": { "x": 4096.0, "y": 16.0 }
+        },
+        {
+            "type": 2,
+            "visible": true,
+            "texture": "",
+            "position": { "x": 512.0, "y": 0.0 },
+            "dimensions": { "x": 0.0, "y": 0.0 },
+            "spike_ammount": 3
+        },
+        {
+            "type": 2,
+            "visible": true,
+            "texture": "",
+            "position": { "x": 1024.0, "y": 0.0 },
+            "dimensions": { "x": 0.0, "y": 0.0 },
+            "spike_ammount": 2
+        },
+        {
+            "type": 2,
+            "visible": true,
+            "texture": "",
+            "position": { "x": 1500.0, "y": 0.0 },
+            "dimensions": { "x": 0.0, "y": 0.0 },
+            "spike_ammount": 20
+        }
+    ]
+}

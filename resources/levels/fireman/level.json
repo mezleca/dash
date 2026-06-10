@@ -27,12 +27,33 @@
             "spike_ammount": 2
         },
         {
+            "type": 1,
+            "visible": true,
+            "texture": "",
+            "position": { "x": 900.0, "y": -64 },
+            "dimensions": { "x": 128.0, "y": 20.0 }
+        },
+        {
+            "type": 1,
+            "visible": true,
+            "texture": "",
+            "position": { "x": 1000.0, "y": -150 },
+            "dimensions": { "x": 512, "y": 20.0 }
+        },
+        {
             "type": 2,
             "visible": true,
             "texture": "",
             "position": { "x": 1500.0, "y": 0.0 },
             "dimensions": { "x": 0.0, "y": 0.0 },
             "spike_ammount": 20
+        },
+        {
+            "type": 1,
+            "visible": true,
+            "texture": "",
+            "position": { "x": 4100, "y": 100 },
+            "dimensions": { "x": 1024, "y": 20.0 }
         }
     ]
 }

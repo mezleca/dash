@@ -7,9 +7,7 @@ struct Player : public GameObject {
     ~Player();
 
     float m_rotation = 0.0f;
-    GameObject* last_platform;
-
-    bool should_lock_in_horizontally = false;
+    bool m_should_lock_in_horizontally = false;
 
     void movement();
     void render() override;

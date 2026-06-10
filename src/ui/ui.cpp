@@ -131,18 +131,21 @@ void UI::render_debug_ui() {
 }
 
 void UI::render_playfield_ui() {
-    static bool was_escape_pressed = false;
+    // handle escape
+    {
+        static bool was_pressed = false;
 
-    if (IsKeyPressed(KEY_ESCAPE) && !was_escape_pressed) {
-        m_is_pause_opened = !m_is_pause_opened;
+        if (IsKeyPressed(KEY_ESCAPE) && !was_pressed) {
+            m_is_pause_opened = !m_is_pause_opened;
 
-        if (game.m_can_pause) {
-            game.m_paused = m_is_pause_opened;
+            if (game.m_can_pause) {
+                game.m_paused = m_is_pause_opened;
+            }
+
+            was_pressed = true;
+        } else {
+            was_pressed = false;
         }
-
-        was_escape_pressed = true;
-    } else {
-        was_escape_pressed = false;
     }
 
     rlImGuiBegin();

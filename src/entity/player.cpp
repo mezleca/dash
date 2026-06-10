@@ -12,7 +12,7 @@ Player::Player() : GameObject(ObjectType::BOX) {
 
     rb->on_hit = [&](GameObject* obj) {
         if (obj->type == ObjectType::PLATFORM) {
-            last_platform = obj;
+            game.update_camera_focus(obj);
         }
     };
 }
@@ -25,7 +25,7 @@ void Player::movement() {
     if (!visible) return;
 
     bool is_pressing_left = IsKeyDown(KEY_A);
-    bool is_pressing_right = IsKeyDown(KEY_D) || should_lock_in_horizontally;
+    bool is_pressing_right = IsKeyDown(KEY_D) || m_should_lock_in_horizontally;
     bool is_pressing_jump = IsKeyDown(KEY_SPACE);
 
     int direction = 0;
@@ -33,18 +33,17 @@ void Player::movement() {
     previous_position = position;
 
     // horizontal movement
-    if (is_pressing_left && !should_lock_in_horizontally) {
+    if (is_pressing_left && !m_should_lock_in_horizontally) {
         direction = -1;
-    } else if (is_pressing_right || should_lock_in_horizontally) {
+    } else if (is_pressing_right || m_should_lock_in_horizontally) {
         direction = 1;
     }
 
-    velocity.x += static_cast<float>(direction) * HORIZONTAL_ACCELERATION * game.fixed_timestep;
+    velocity.x += static_cast<float>(direction) * HORIZONTAL_ACCELERATION * game.m_fixed_frametime;
 
     // vertical movement
     if (is_pressing_jump && rb->grounded) {
         velocity.y = -JUMP_FORCE;
-        last_platform = nullptr;
     }
 }
 
@@ -70,13 +69,15 @@ void Player::render() {
 
     if (!rb->grounded && !game.m_paused) {
         if (velocity.x > 0) {
-            m_rotation += 180.0f * game.fixed_timestep;
+            m_rotation += 180.0f * game.m_fixed_frametime;
         } else {
-            m_rotation -= 180.0f * game.fixed_timestep;
+            m_rotation -= 180.0f * game.m_fixed_frametime;
         }
     } else {
-        float target_angle = std::round(m_rotation / 90.0f) * 90.0f;
-        m_rotation = d_math::lerp(m_rotation, target_angle, 0.2f);
+        if (!game.m_paused) {
+            float target_angle = std::round(m_rotation / 90.0f) * 90.0f;
+            m_rotation = d_math::lerp(m_rotation, target_angle, 0.2f);
+        }
     }
 
     DrawTexturePro(texture, source, dest, origin, m_rotation, WHITE);

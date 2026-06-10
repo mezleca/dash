@@ -11,14 +11,14 @@ static bool aabb(const GameObject& a, const GameObject& b) {
 void RigidBody::simulate() {
     if (is_static) return;
 
-    const float horizontal_damping = std::max(0.0f, 1.0f - HORIZONTAL_DAMPING * game.fixed_timestep);
+    const float horizontal_damping = std::max(0.0f, 1.0f - HORIZONTAL_DAMPING * game.m_fixed_frametime);
 
     obj->velocity.x *= horizontal_damping;
-    obj->velocity.y += GRAVITY * game.fixed_timestep;
+    obj->velocity.y += GRAVITY * game.m_fixed_frametime;
     obj->velocity.y = std::min(obj->velocity.y, FALL_MAX_SPEED);
 
     // resolve x
-    obj->position.x += obj->velocity.x * game.fixed_timestep;
+    obj->position.x += obj->velocity.x * game.m_fixed_frametime;
 
     for (const auto& object : game.m_objects) {
         if (object == this->obj) continue;
@@ -44,7 +44,7 @@ void RigidBody::simulate() {
     grounded = false;
 
     // resolve y
-    obj->position.y += obj->velocity.y * game.fixed_timestep;
+    obj->position.y += obj->velocity.y * game.m_fixed_frametime;
 
     for (const auto& object : game.m_objects) {
         if (object == this->obj) continue;

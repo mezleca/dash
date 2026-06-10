@@ -2,7 +2,9 @@
 #include "../entity/player.hpp"
 #include "../physics/rigidbody.hpp"
 #include "../utils/math.hpp"
+#include "object.hpp"
 
+#include <cmath>
 #include <filesystem>
 #include <iostream>
 #include <nlohmann/json.hpp>
@@ -10,62 +12,49 @@
 #include <raylib.h>
 #include <string_view>
 
+static constexpr float CAMERA_PLATFORM_X_THRESHOLD = 200.0f;
+static constexpr float CAMERA_PLATFORM_Y_THRESHOLD = 1000.0f;
+static constexpr float CAMERA_Y_SMOOTHING = 0.09f;
+static constexpr float CAMERA_X_LOOK_AHEAD = 128.0f;
+
 Game::Game() {
-    ui.mode = UIMode::MENU;
+    m_ui.mode = UIMode::MENU;
 
-    window.title = "dash";
-    window.width = 1280;
-    window.height = 720;
+    m_window.title = "dash";
+    m_window.width = 1280;
+    m_window.height = 720;
 
-    camera = {0};
-    camera.rotation = 0.0f;
-    camera.zoom = 1.2f;
+    m_camera = {0};
+    m_camera.rotation = 0.0f;
+    m_camera.zoom = 1.2f;
 }
 
 Game::~Game() {
 }
 
 void Game::initialize() {
-    InitWindow(window.width, window.height, window.title.c_str());
+    InitWindow(m_window.width, m_window.height, m_window.title.c_str());
     InitAudioDevice();
 
     SetTargetFPS(60);
-    rlImGuiSetup(true);
     SetExitKey(0);
+
+    rlImGuiSetup(true);
 
     // load all levels data (objects will be created only when necessary)
     load_all_levels();
 
     while (!WindowShouldClose()) {
-        m_accumulator += GetFrameTime();
+        handle_pause_state();
+        update_simulation_timestep();
 
-        while (m_accumulator >= fixed_timestep) {
-            m_accumulator -= fixed_timestep;
-            simulate();
+        // handle resize
+        if (IsWindowResized()) {
+            m_window.width = GetScreenWidth();
+            m_window.height = GetScreenHeight();
         }
 
-        m_alpha = m_accumulator / fixed_timestep;
-
-        static bool was_paused = true;
-
-        if (m_current_level != nullptr) {
-            // handle play / pause
-            if (game.m_paused && was_paused) {
-                std::cout << "[game] pausing music\n";
-                PauseMusicStream(m_current_level->music);
-                was_paused = false;
-            } else if (!game.m_paused && !was_paused) {
-                std::cout << "[game] resuming music\n";
-                SeekMusicStream(m_current_level->music, m_current_level->m_current_music_progress);
-                ResumeMusicStream(m_current_level->music);
-                was_paused = true;
-            }
-
-            if (!game.m_paused) {
-                UpdateMusicStream(m_current_level->music);
-                m_current_level->m_current_music_progress = GetMusicTimePlayed(m_current_level->music);
-            }
-        }
+        update_current_level_music();
 
         BeginDrawing();
         {
@@ -77,6 +66,67 @@ void Game::initialize() {
 
     rlImGuiShutdown();
     CloseWindow();
+}
+
+void Game::update_simulation_timestep() {
+    if (m_paused) {
+        m_accumulator = 0.0f;
+        m_alpha = 0.0f;
+        return;
+    }
+
+    m_accumulator += GetFrameTime();
+
+    while (m_accumulator >= m_fixed_frametime) {
+        m_accumulator -= m_fixed_frametime;
+        simulate();
+    }
+
+    m_alpha = m_accumulator / m_fixed_frametime;
+}
+
+void Game::handle_pause_state() {
+    if (m_paused == m_was_paused) {
+        return;
+    }
+
+    if (m_paused) {
+        m_accumulator = 0.0f;
+        m_alpha = 0.0f;
+        pause_current_level_music();
+    } else {
+        resume_current_level_music();
+    }
+
+    m_was_paused = m_paused;
+}
+
+void Game::pause_current_level_music() {
+    if (m_current_level == nullptr) {
+        return;
+    }
+
+    std::cout << "[game] pausing music\n";
+    PauseMusicStream(m_current_level->music);
+}
+
+void Game::resume_current_level_music() {
+    if (m_current_level == nullptr) {
+        return;
+    }
+
+    std::cout << "[game] resuming music\n";
+    SeekMusicStream(m_current_level->music, m_current_level->m_current_music_progress);
+    ResumeMusicStream(m_current_level->music);
+}
+
+void Game::update_current_level_music() {
+    if (m_paused || m_current_level == nullptr) {
+        return;
+    }
+
+    UpdateMusicStream(m_current_level->music);
+    m_current_level->m_current_music_progress = GetMusicTimePlayed(m_current_level->music);
 }
 
 void Game::load_all_levels() {
@@ -145,7 +195,9 @@ void Game::load_level(std::string_view location, UIMode mode) {
     PlayMusicStream(level->music);
 
     m_paused = false;
-    ui.mode = mode;
+    m_was_paused = false;
+    best_object = nullptr;
+    m_ui.mode = mode;
     m_current_level = level;
 
     std::cout << "loaded " << location << " succefully" << "\n";
@@ -163,27 +215,70 @@ void Game::unload_current_level() {
     delete m_player;
     delete m_current_level;
 
-    ui.mode = UIMode::MENU;
+    m_ui.mode = UIMode::MENU;
     m_paused = false;
+    m_was_paused = false;
+    best_object = nullptr;
+}
+
+void Game::update_camera_focus(GameObject* obj) {
+    if (best_object != obj) {
+        best_object = obj;
+    }
+
+    target_y = obj->position.y + obj->dimensions.y / 2.0f;
 }
 
 void Game::simulate() {
-    if (m_paused) return;
-    if (ui.mode != UIMode::PLAYFIELD) return;
+    if (m_ui.mode != UIMode::PLAYFIELD) return;
     if (m_player == nullptr) return;
 
     m_player->movement();
     m_player->rb->simulate();
 
-    camera.target = {d_math::lerp(camera.target.x, m_player->position.x + 20.0f, 0.2f), m_player->position.y};
-    camera.offset = {m_player->dimensions.x + 20.0f, m_player->dimensions.y + 40.0f};
+    GameObject* closest_platform = nullptr;
+
+    const float player_center_x = m_player->position.x + m_player->dimensions.x / 2.0f;
+    const float player_bottom_y = m_player->position.y + m_player->dimensions.y;
+
+    float closest_platform_distance = CAMERA_PLATFORM_Y_THRESHOLD;
+
+    for (const auto& object : m_objects) {
+        if (object->type != ObjectType::PLATFORM) continue;
+
+        const float platform_min_x = object->position.x - CAMERA_PLATFORM_X_THRESHOLD;
+        const float platform_max_x = object->position.x + object->dimensions.x + CAMERA_PLATFORM_X_THRESHOLD;
+
+        if (player_center_x < platform_min_x || player_center_x > platform_max_x) {
+            continue;
+        }
+
+        const float platform_distance = std::fabs(player_bottom_y - object->position.y);
+
+        if (platform_distance >= closest_platform_distance) {
+            continue;
+        }
+
+        closest_platform = object;
+        closest_platform_distance = platform_distance;
+    }
+
+    if (closest_platform != nullptr) {
+        update_camera_focus(closest_platform);
+    } else {
+        update_camera_focus(m_player);
+    }
+
+    m_camera.target = {m_player->position.x + CAMERA_X_LOOK_AHEAD,
+                       d_math::lerp(m_camera.target.y, target_y, CAMERA_Y_SMOOTHING)};
+    m_camera.offset = {m_window.width / 2.0f, m_window.height / 2.0f};
 }
 
 void Game::render() {
-    if (ui.mode == UIMode::MENU) {
-        ui.render_main_menu();
-    } else if (ui.mode == UIMode::PLAYFIELD) {
-        BeginMode2D(camera);
+    if (m_ui.mode == UIMode::MENU) {
+        m_ui.render_main_menu();
+    } else if (m_ui.mode == UIMode::PLAYFIELD) {
+        BeginMode2D(m_camera);
         {
             // render all visible objects
             for (const auto& object : m_objects) {
@@ -192,7 +287,7 @@ void Game::render() {
         }
         EndMode2D();
 
-        ui.render_debug_ui();
-        ui.render_playfield_ui();
+        m_ui.render_debug_ui();
+        m_ui.render_playfield_ui();
     }
 }

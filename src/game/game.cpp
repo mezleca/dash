@@ -31,15 +31,12 @@ void Game::initialize() {
 
     SetTargetFPS(60);
     rlImGuiSetup(true);
+    SetExitKey(0);
 
     // load all levels data (objects will be created only when necessary)
     load_all_levels();
 
     while (!WindowShouldClose()) {
-        if (m_current_level != nullptr) {
-            UpdateMusicStream(m_current_level->music);
-        }
-
         m_accumulator += GetFrameTime();
 
         while (m_accumulator >= fixed_timestep) {
@@ -47,7 +44,28 @@ void Game::initialize() {
             simulate();
         }
 
-        alpha = m_accumulator / fixed_timestep;
+        m_alpha = m_accumulator / fixed_timestep;
+
+        static bool was_paused = true;
+
+        if (m_current_level != nullptr) {
+            // handle play / pause
+            if (game.m_paused && was_paused) {
+                std::cout << "[game] pausing music\n";
+                PauseMusicStream(m_current_level->music);
+                was_paused = false;
+            } else if (!game.m_paused && !was_paused) {
+                std::cout << "[game] resuming music\n";
+                SeekMusicStream(m_current_level->music, m_current_level->m_current_music_progress);
+                ResumeMusicStream(m_current_level->music);
+                was_paused = true;
+            }
+
+            if (!game.m_paused) {
+                UpdateMusicStream(m_current_level->music);
+                m_current_level->m_current_music_progress = GetMusicTimePlayed(m_current_level->music);
+            }
+        }
 
         BeginDrawing();
         {
@@ -126,7 +144,7 @@ void Game::load_level(std::string_view location, UIMode mode) {
     SetMusicVolume(level->music, 0.5f);
     PlayMusicStream(level->music);
 
-    paused = false;
+    m_paused = false;
     ui.mode = mode;
     m_current_level = level;
 
@@ -146,11 +164,11 @@ void Game::unload_current_level() {
     delete m_current_level;
 
     ui.mode = UIMode::MENU;
-    paused = false;
+    m_paused = false;
 }
 
 void Game::simulate() {
-    if (paused) return;
+    if (m_paused) return;
     if (ui.mode != UIMode::PLAYFIELD) return;
     if (m_player == nullptr) return;
 
@@ -173,5 +191,8 @@ void Game::render() {
             }
         }
         EndMode2D();
+
+        ui.render_debug_ui();
+        ui.render_playfield_ui();
     }
 }

@@ -51,8 +51,8 @@ void Player::movement() {
 void Player::render() {
     if (!visible) return;
 
-    Vector2 interpolated_position = {d_math::lerp(previous_position.x, position.x, game.alpha),
-                                     d_math::lerp(previous_position.y, position.y, game.alpha)};
+    Vector2 interpolated_position = {d_math::lerp(previous_position.x, position.x, game.m_alpha),
+                                     d_math::lerp(previous_position.y, position.y, game.m_alpha)};
 
     float texture_width = static_cast<float>(texture.width);
     float texture_height = static_cast<float>(texture.height);
@@ -68,8 +68,12 @@ void Player::render() {
         m_rotation = 0.0f;
     }
 
-    if (!rb->grounded) {
-        m_rotation += 180.0f * game.fixed_timestep;
+    if (!rb->grounded && !game.m_paused) {
+        if (velocity.x > 0) {
+            m_rotation += 180.0f * game.fixed_timestep;
+        } else {
+            m_rotation -= 180.0f * game.fixed_timestep;
+        }
     } else {
         float target_angle = std::round(m_rotation / 90.0f) * 90.0f;
         m_rotation = d_math::lerp(m_rotation, target_angle, 0.2f);

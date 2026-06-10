@@ -37,13 +37,16 @@ struct Game {
     UI ui;
     Camera2D camera;
 
+    DashLevel* m_current_level;
+
     std::vector<GameObject*> m_objects;
     std::unordered_map<std::string, DashLevel*> m_levels;
 
     const float fixed_timestep = 1.0f / 60.0f;
-    float alpha = 0.0f;
+    float m_alpha = 0.0f;
 
-    bool paused = false;
+    bool m_paused = false;
+    bool m_can_pause = true;
 
     // this will def fuck me later
     void add_game_object(GameObject* obj) {
@@ -67,5 +70,4 @@ struct Game {
 
   private:
     float m_accumulator;
-    DashLevel* m_current_level;
 } inline game;

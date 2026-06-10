@@ -1,6 +1,6 @@
 {
     "name": "fireman",
-    "music_file": "audio2.mp3",
+    "music_file": "audio.mp3",
     "player_start": { "x": 32, "y": 0 },
     "objects": [
         {

@@ -22,6 +22,7 @@ struct DashLevel {
 
     // progress
     float m_current_progress = 0.0f;
+    float m_current_music_progress = 0.0f;
 
     // game managed shit
     Music music;

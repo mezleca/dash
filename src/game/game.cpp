@@ -16,6 +16,7 @@ static constexpr float CAMERA_PLATFORM_X_THRESHOLD = 200.0f;
 static constexpr float CAMERA_PLATFORM_Y_THRESHOLD = 1000.0f;
 static constexpr float CAMERA_Y_SMOOTHING = 0.09f;
 static constexpr float CAMERA_X_LOOK_AHEAD = 128.0f;
+static constexpr float CAMERA_Y_LOOK_AHEAD = -32.0f;
 
 Game::Game() {
     m_ui.mode = UIMode::MENU;
@@ -54,7 +55,7 @@ void Game::initialize() {
             m_window.height = GetScreenHeight();
         }
 
-        update_current_level_music();
+        update_current_level_progress();
 
         BeginDrawing();
         {
@@ -120,13 +121,15 @@ void Game::resume_current_level_music() {
     ResumeMusicStream(m_current_level->music);
 }
 
-void Game::update_current_level_music() {
+void Game::update_current_level_progress() {
     if (m_paused || m_current_level == nullptr) {
         return;
     }
 
     UpdateMusicStream(m_current_level->music);
+
     m_current_level->m_current_music_progress = GetMusicTimePlayed(m_current_level->music);
+    if (m_current_level->m_current_progress < 100.0f) m_current_level->update();
 }
 
 void Game::load_all_levels() {
@@ -143,7 +146,7 @@ void Game::load_all_levels() {
                 continue;
             }
 
-            const char* location = file.path().c_str();
+            const std::string location = file.path().string();
             std::cout << "[game] found level at " << location << "\n";
 
             // create new level and load basic metadata
@@ -161,7 +164,8 @@ void Game::load_level(std::string_view location, UIMode mode) {
         return;
     }
 
-    auto level_it = m_levels.find(location.data());
+    const std::string level_key(location);
+    auto level_it = m_levels.find(level_key);
 
     if (level_it == m_levels.end()) {
         std::cout << "[game] failed to find level " << location << "\n";
@@ -196,7 +200,7 @@ void Game::load_level(std::string_view location, UIMode mode) {
 
     m_paused = false;
     m_was_paused = false;
-    best_object = nullptr;
+    m_best_object = nullptr;
     m_ui.mode = mode;
     m_current_level = level;
 
@@ -210,23 +214,37 @@ void Game::unload_current_level() {
     }
 
     StopMusicStream(m_current_level->music);
+    UnloadMusicStream(m_current_level->music);
+
     m_current_level->unload();
 
     delete m_player;
-    delete m_current_level;
 
     m_ui.mode = UIMode::MENU;
+    m_ui.reset_playfield_state();
+
     m_paused = false;
     m_was_paused = false;
-    best_object = nullptr;
+    m_player = nullptr;
+    m_best_object = nullptr;
+    m_current_level = nullptr;
+}
+
+void Game::finish_level() {
+    // if we reach the end of the level, make player immortal to prevent bs
+    m_player->m_ignore_collision = true;
+
+    m_ui.reset_playfield_state();
+    m_ui.m_playfield_container_open = true;
+    m_ui.m_show_finished = true;
 }
 
 void Game::update_camera_focus(GameObject* obj) {
-    if (best_object != obj) {
-        best_object = obj;
+    if (m_best_object != obj) {
+        m_best_object = obj;
     }
 
-    target_y = obj->position.y + obj->dimensions.y / 2.0f;
+    m_focus_y = obj->position.y + obj->dimensions.y / 2.0f;
 }
 
 void Game::simulate() {
@@ -270,13 +288,17 @@ void Game::simulate() {
     }
 
     m_camera.target = {m_player->position.x + CAMERA_X_LOOK_AHEAD,
-                       d_math::lerp(m_camera.target.y, target_y, CAMERA_Y_SMOOTHING)};
+                       d_math::lerp(m_camera.target.y, m_focus_y + CAMERA_Y_LOOK_AHEAD, CAMERA_Y_SMOOTHING)};
     m_camera.offset = {m_window.width / 2.0f, m_window.height / 2.0f};
 }
 
 void Game::render() {
     if (m_ui.mode == UIMode::MENU) {
-        m_ui.render_main_menu();
+        rlImGuiBegin();
+        {
+            m_ui.render_main_menu();
+        }
+        rlImGuiEnd();
     } else if (m_ui.mode == UIMode::PLAYFIELD) {
         BeginMode2D(m_camera);
         {
@@ -287,7 +309,29 @@ void Game::render() {
         }
         EndMode2D();
 
-        m_ui.render_debug_ui();
-        m_ui.render_playfield_ui();
+        // handle escape
+        {
+            static bool was_pressed = false;
+
+            if (IsKeyPressed(KEY_ESCAPE) && !was_pressed) {
+                m_ui.m_playfield_container_open = !m_ui.m_playfield_container_open;
+
+                if (game.m_can_pause) {
+                    game.m_paused = m_ui.m_playfield_container_open;
+                    m_ui.m_show_pause = game.m_paused && (!m_ui.m_show_dead || !m_ui.m_show_finished);
+                }
+
+                was_pressed = true;
+            } else {
+                was_pressed = false;
+            }
+        }
+
+        rlImGuiBegin();
+        {
+            m_ui.render_debug_ui();
+            m_ui.render_playfield_ui();
+        }
+        rlImGuiEnd();
     }
 }

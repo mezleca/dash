@@ -25,16 +25,18 @@ void RigidBody::simulate() {
         if (!object->visible) continue;
         if (!aabb(*obj, *object)) continue;
 
-        float overlap_left = (object->position.x + object->dimensions.x) - obj->position.x;
-        float overlap_right = (obj->position.x + obj->dimensions.x) - object->position.x;
+        if (!object->rb->is_trigger) {
+            float overlap_left = (object->position.x + object->dimensions.x) - obj->position.x;
+            float overlap_right = (obj->position.x + obj->dimensions.x) - object->position.x;
 
-        if (overlap_left < overlap_right) {
-            obj->position.x += overlap_left;
-        } else {
-            obj->position.x -= overlap_right;
+            if (overlap_left < overlap_right) {
+                obj->position.x += overlap_left;
+            } else {
+                obj->position.x -= overlap_right;
+            }
+
+            obj->velocity.x = 0.0f;
         }
-
-        obj->velocity.x = 0.0f;
 
         if (on_hit) {
             on_hit(object);
@@ -51,16 +53,18 @@ void RigidBody::simulate() {
         if (!object->visible) continue;
         if (!aabb(*obj, *object)) continue;
 
-        float overlap_top = (object->position.y + object->dimensions.y) - obj->position.y;
-        float overlap_bot = (obj->position.y + obj->dimensions.y) - object->position.y;
+        if (!object->rb->is_trigger) {
+            float overlap_top = (object->position.y + object->dimensions.y) - obj->position.y;
+            float overlap_bot = (obj->position.y + obj->dimensions.y) - object->position.y;
 
-        if (overlap_bot < overlap_top) {
-            obj->position.y -= overlap_bot;
-            obj->velocity.y = 0.0f;
-            grounded = true;
-        } else {
-            obj->position.y += overlap_top;
-            obj->velocity.y = 0.0f;
+            if (overlap_bot < overlap_top) {
+                obj->position.y -= overlap_bot;
+                obj->velocity.y = 0.0f;
+                grounded = true;
+            } else {
+                obj->position.y += overlap_top;
+                obj->velocity.y = 0.0f;
+            }
         }
 
         if (on_hit) {

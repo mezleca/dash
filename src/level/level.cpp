@@ -1,8 +1,9 @@
 #include "level.hpp"
 #include "../game/game.hpp"
+#include "../entity/player.hpp"
 #include "../entity/world/platform.hpp"
 #include "../entity/world/spike.hpp"
-#include "nlohmann/json_fwd.hpp"
+#include "../entity/world/finish.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -22,6 +23,7 @@ bool DashLevel::load(std::string_view location) {
     m_name = j["name"].get<std::string>();
     m_music_file = j["music_file"].get<std::string>();
     m_player_start = j["player_start"].get<Vector2>();
+    m_level_end = {0, 0};
     m_temp_objects = j.at("objects");
 
     m_file = std::filesystem::path(location);
@@ -63,9 +65,10 @@ bool DashLevel::load_objects() {
         obj->visible = visible;
         obj->position = position;
 
-        if (obj->texture_location != "") {
-            // NOTE: texture_location will always be relative to the level folder
-            std::filesystem::path full_location = m_file.parent_path() / obj->texture_location;
+        // load texture
+        // NOTE: texture_location will always be relative to the level folder
+        if (!texture_location.empty()) {
+            std::filesystem::path full_location = m_file.parent_path() / texture_location;
             obj->load_texture(full_location.c_str());
         }
 
@@ -74,11 +77,24 @@ bool DashLevel::load_objects() {
             obj->dimensions = dimensions;
         }
 
+        // update level end position
+        if (type == ObjectType::PLATFORM && obj->position.x + obj->dimensions.x > m_level_end.x) {
+            m_level_end = {obj->position.x + obj->dimensions.x, obj->position.y};
+        }
+
         m_objects.push_back(obj);
     }
 
-    m_temp_objects = {};
+    if (m_level_end.x == 0) {
+        std::cout << "[level] unable to determine level end position\n";
+        return false;
+    }
 
+    // create fuckass end object
+    Finish* end = new Finish();
+    end->position = {m_level_end.x - end->m_radius, m_level_end.y - end->m_radius};
+
+    m_objects.push_back(end);
     return true;
 }
 
@@ -104,10 +120,22 @@ bool DashLevel::save() {
     return true;
 }
 
+void DashLevel::update() {
+    m_current_progress = game.m_player->position.x / m_level_end.x * 100;
+
+    if (m_current_progress >= 100.0f) {
+        m_current_progress = 100.0f;
+        game.finish_level();
+    }
+}
+
 void DashLevel::unload() {
     for (const auto& object : m_objects) {
         delete object;
     }
 
     m_objects.clear();
+    m_level_end = {0, 0};
+    m_current_progress = 0.0f;
+    m_current_music_progress = 0.0f;
 }

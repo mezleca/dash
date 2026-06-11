@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <string>
 
-enum class ObjectType : int32_t { NONE = -1, BOX, PLATFORM, SPIKE };
+enum class ObjectType : int32_t { NONE = -1, BOX, PLATFORM, SPIKE, END };
 
 struct RigidBody;
 

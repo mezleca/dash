@@ -19,6 +19,7 @@ struct RigidBody {
     GameObject* last_hit;
 
     bool is_static = false;
+    bool is_trigger = false;
     bool grounded = false;
 
     void simulate();

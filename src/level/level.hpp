@@ -18,7 +18,10 @@ struct DashLevel {
     std::filesystem::path m_file;  // runtime
     std::string m_name;            // from json
     std::string m_music_file;      // from json
-    Vector2 m_player_start;        // from json
+
+    // level start/end
+    Vector2 m_player_start; // from json
+    Vector2 m_level_end;    // runtime
 
     // progress
     float m_current_progress = 0.0f;
@@ -29,6 +32,7 @@ struct DashLevel {
 
     bool save();
     bool load(std::string_view location);
+    void update();
     bool load_objects();
     void unload();
 };

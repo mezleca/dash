@@ -47,8 +47,13 @@ struct Game {
     float m_fixed_frametime = DEFAULT_FIXED_FRAMETIME;
     float m_alpha = 0.0f;
 
+    // pause
     bool m_paused = false;
     bool m_can_pause = true;
+
+    // camera focus
+    GameObject* m_best_object = nullptr;
+    float m_focus_y = 0.0f;
 
     // this will def fuck me later
     void add_game_object(GameObject* obj) {
@@ -72,6 +77,7 @@ struct Game {
     void load_level(std::string_view id, UIMode mode);
     void unload_current_level();
     void load_all_levels();
+    void finish_level();
 
     // camera related stuff
     void update_camera_focus(GameObject* obj);
@@ -80,12 +86,8 @@ struct Game {
     float m_accumulator = 0.0f;
     bool m_was_paused = false;
 
-    // camera
-    GameObject* best_object = nullptr;
-    float target_y = 0.0f;
-
     void handle_pause_state();
     void pause_current_level_music();
     void resume_current_level_music();
-    void update_current_level_music();
+    void update_current_level_progress();
 } inline game;

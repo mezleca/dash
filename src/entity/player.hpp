@@ -7,6 +7,8 @@ struct Player : public GameObject {
     ~Player();
 
     float m_rotation = 0.0f;
+
+    bool m_ignore_collision = false;
     bool m_should_lock_in_horizontally = false;
 
     void movement();

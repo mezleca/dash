@@ -2,6 +2,7 @@
 #include "../utils/math.hpp"
 #include "../game/game.hpp"
 #include "../physics/rigidbody.hpp"
+#include <iostream>
 
 constexpr float JUMP_FORCE = 1495.5f;
 constexpr float HORIZONTAL_ACCELERATION = 45000.0f / 4.0f;
@@ -12,7 +13,15 @@ Player::Player() : GameObject(ObjectType::BOX) {
 
     rb->on_hit = [&](GameObject* obj) {
         if (obj->type == ObjectType::PLATFORM) {
-            game.update_camera_focus(obj);
+            if (!rb->grounded) {
+                std::cout << "[player] should be dead\n";
+            } else {
+                game.update_camera_focus(obj);
+            }
+        }
+
+        if (obj->type == ObjectType::SPIKE) {
+            std::cout << "[player] should be dead\n";
         }
     };
 }
@@ -23,6 +32,7 @@ Player::~Player() {
 
 void Player::movement() {
     if (!visible) return;
+    if (game.m_ui.mode == UIMode::PLAYFIELD && game.m_current_level->m_current_progress >= 100.0f) return;
 
     bool is_pressing_left = IsKeyDown(KEY_A);
     bool is_pressing_right = IsKeyDown(KEY_D) || m_should_lock_in_horizontally;

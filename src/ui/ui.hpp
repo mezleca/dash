@@ -6,10 +6,20 @@ struct UI {
   public:
     UIMode mode;
 
+    // playfield state
+    bool m_playfield_container_open = false;
+    bool m_show_pause = false;
+    bool m_show_dead = false;
+    bool m_show_finished = false;
+
+    void reset_playfield_state() {
+        m_playfield_container_open = false;
+        m_show_pause = false;
+        m_show_dead = false;
+        m_show_finished = false;
+    }
+
     void render_main_menu();
     void render_debug_ui();
     void render_playfield_ui();
-
-  private:
-    bool m_is_pause_opened = false;
 } inline g_ui;

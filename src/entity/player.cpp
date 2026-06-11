@@ -12,6 +12,8 @@ Player::Player() : GameObject(ObjectType::BOX) {
     load_texture("resources/sprites/default.png");
 
     rb->on_hit = [&](GameObject* obj) {
+        if (m_finished_level) return;
+
         if (obj->type == ObjectType::PLATFORM) {
             if (!rb->grounded) {
                 std::cout << "[player] should be dead\n";
@@ -32,7 +34,6 @@ Player::~Player() {
 
 void Player::movement() {
     if (!visible) return;
-    if (game.m_ui.mode == UIMode::PLAYFIELD && game.m_current_level->m_current_progress >= 100.0f) return;
 
     bool is_pressing_left = IsKeyDown(KEY_A);
     bool is_pressing_right = IsKeyDown(KEY_D) || m_should_lock_in_horizontally;
@@ -42,18 +43,38 @@ void Player::movement() {
 
     previous_position = position;
 
-    // horizontal movement
-    if (is_pressing_left && !m_should_lock_in_horizontally) {
-        direction = -1;
-    } else if (is_pressing_right || m_should_lock_in_horizontally) {
-        direction = 1;
+    if (!m_finished_level) {
+        // horizontal movement
+        if (is_pressing_left && !m_should_lock_in_horizontally) {
+            direction = -1;
+        } else if (is_pressing_right || m_should_lock_in_horizontally) {
+            direction = 1;
+        }
     }
 
     velocity.x += static_cast<float>(direction) * HORIZONTAL_ACCELERATION * game.m_fixed_frametime;
 
     // vertical movement
-    if (is_pressing_jump && rb->grounded) {
+    if (!m_finished_level && is_pressing_jump && rb->grounded) {
         velocity.y = -JUMP_FORCE;
+    }
+
+    // update sprite rotation
+    if (m_rotation >= 360.0f) {
+        m_rotation = 0.0f;
+    }
+
+    if (!rb->grounded && !game.m_paused) {
+        if (velocity.x > 0) {
+            m_rotation += 180.0f * game.m_fixed_frametime;
+        } else {
+            m_rotation -= 180.0f * game.m_fixed_frametime;
+        }
+    } else {
+        if (!game.m_paused) {
+            float target_angle = std::round(m_rotation / 90.0f) * 90.0f;
+            m_rotation = d_math::lerp(m_rotation, target_angle, 0.2f);
+        }
     }
 }
 
@@ -72,23 +93,6 @@ void Player::render() {
                       texture_width, texture_height};
 
     Vector2 origin = {texture_width / 2.0f, texture_height / 2.0f};
-
-    if (m_rotation >= 360.0f) {
-        m_rotation = 0.0f;
-    }
-
-    if (!rb->grounded && !game.m_paused) {
-        if (velocity.x > 0) {
-            m_rotation += 180.0f * game.m_fixed_frametime;
-        } else {
-            m_rotation -= 180.0f * game.m_fixed_frametime;
-        }
-    } else {
-        if (!game.m_paused) {
-            float target_angle = std::round(m_rotation / 90.0f) * 90.0f;
-            m_rotation = d_math::lerp(m_rotation, target_angle, 0.2f);
-        }
-    }
 
     DrawTexturePro(texture, source, dest, origin, m_rotation, WHITE);
 }

@@ -233,6 +233,7 @@ void Game::unload_current_level() {
 void Game::finish_level() {
     // if we reach the end of the level, make player immortal to prevent bs
     m_player->m_ignore_collision = true;
+    m_player->m_finished_level = true;
 
     m_ui.reset_playfield_state();
     m_ui.m_playfield_container_open = true;
@@ -254,37 +255,39 @@ void Game::simulate() {
     m_player->movement();
     m_player->rb->simulate();
 
-    GameObject* closest_platform = nullptr;
+    static GameObject* closest_platform = nullptr;
 
-    const float player_center_x = m_player->position.x + m_player->dimensions.x / 2.0f;
-    const float player_bottom_y = m_player->position.y + m_player->dimensions.y;
+    if (!m_player->m_finished_level) {
+        const float player_center_x = m_player->position.x + m_player->dimensions.x / 2.0f;
+        const float player_bottom_y = m_player->position.y + m_player->dimensions.y;
 
-    float closest_platform_distance = CAMERA_PLATFORM_Y_THRESHOLD;
+        float closest_platform_distance = CAMERA_PLATFORM_Y_THRESHOLD;
 
-    for (const auto& object : m_objects) {
-        if (object->type != ObjectType::PLATFORM) continue;
+        for (const auto& object : m_objects) {
+            if (object->type != ObjectType::PLATFORM) continue;
 
-        const float platform_min_x = object->position.x - CAMERA_PLATFORM_X_THRESHOLD;
-        const float platform_max_x = object->position.x + object->dimensions.x + CAMERA_PLATFORM_X_THRESHOLD;
+            const float platform_min_x = object->position.x - CAMERA_PLATFORM_X_THRESHOLD;
+            const float platform_max_x = object->position.x + object->dimensions.x + CAMERA_PLATFORM_X_THRESHOLD;
 
-        if (player_center_x < platform_min_x || player_center_x > platform_max_x) {
-            continue;
+            if (player_center_x < platform_min_x || player_center_x > platform_max_x) {
+                continue;
+            }
+
+            const float platform_distance = std::fabs(player_bottom_y - object->position.y);
+
+            if (platform_distance >= closest_platform_distance) {
+                continue;
+            }
+
+            closest_platform = object;
+            closest_platform_distance = platform_distance;
         }
 
-        const float platform_distance = std::fabs(player_bottom_y - object->position.y);
-
-        if (platform_distance >= closest_platform_distance) {
-            continue;
+        if (closest_platform != nullptr) {
+            update_camera_focus(closest_platform);
+        } else {
+            update_camera_focus(m_player);
         }
-
-        closest_platform = object;
-        closest_platform_distance = platform_distance;
-    }
-
-    if (closest_platform != nullptr) {
-        update_camera_focus(closest_platform);
-    } else {
-        update_camera_focus(m_player);
     }
 
     m_camera.target = {m_player->position.x + CAMERA_X_LOOK_AHEAD,

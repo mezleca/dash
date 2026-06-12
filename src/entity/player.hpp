@@ -2,7 +2,10 @@
 
 #include "../game/object.hpp"
 
+enum class PlayerType : int { NONE = -1, BOX, BIRD };
+
 struct Player : public GameObject {
+  public:
     explicit Player();
     ~Player();
 
@@ -12,10 +15,16 @@ struct Player : public GameObject {
     bool m_finished_level = false;
     bool m_should_lock_in_horizontally = false;
 
+    PlayerType m_player_type;
+
     void movement();
+    void update_player_type(PlayerType type);
     void render() override;
 
     nlohmann::json serialize() const override {
         return GameObject::serialize();
     }
+
+  private:
+    bool m_should_flip_player = false;
 };

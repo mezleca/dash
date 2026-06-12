@@ -7,9 +7,17 @@
 constexpr float JUMP_FORCE = 1495.5f;
 constexpr float HORIZONTAL_ACCELERATION = 45000.0f / 4.0f;
 
+static float get_angle_tilt(float a, float b, float c) {
+    float result = (a / b) * c;
+
+    if (result > c) result = c;
+    if (result < -c) result = -c;
+
+    return result;
+}
+
 Player::Player() : GameObject(ObjectType::BOX) {
-    game.add_game_object(this);
-    load_texture("resources/sprites/default.png");
+    update_player_type(PlayerType::BIRD);
 
     rb->on_hit = [&](GameObject* obj) {
         if (m_finished_level) return;
@@ -26,10 +34,30 @@ Player::Player() : GameObject(ObjectType::BOX) {
             std::cout << "[player] should be dead\n";
         }
     };
+
+    game.add_game_object(this);
 }
 
 Player::~Player() {
     UnloadTexture(texture);
+}
+
+void Player::update_player_type(PlayerType type) {
+    switch (type) {
+        case PlayerType::NONE:
+        case PlayerType::BOX: {
+            load_texture("resources/sprites/default.png");
+            rb->m_gravity = DEFAULT_GRAVITY;
+            break;
+        }
+        case PlayerType::BIRD: {
+            load_texture("resources/sprites/bird.png");
+            rb->m_gravity = DEFAULT_GRAVITY / 3.0f;
+            break;
+        }
+    }
+
+    m_player_type = type;
 }
 
 void Player::movement() {
@@ -39,6 +67,9 @@ void Player::movement() {
     bool is_pressing_right = IsKeyDown(KEY_D) || m_should_lock_in_horizontally;
     bool is_pressing_jump = IsKeyDown(KEY_SPACE);
 
+    bool is_birb = m_player_type == PlayerType::BIRD;
+
+    float jump_force = JUMP_FORCE;
     int direction = 0;
 
     previous_position = position;
@@ -53,10 +84,15 @@ void Player::movement() {
     }
 
     velocity.x += static_cast<float>(direction) * HORIZONTAL_ACCELERATION * game.m_fixed_frametime;
+    m_should_flip_player = direction == -1;
+
+    if (is_birb) {
+        jump_force /= 3.0f;
+    }
 
     // vertical movement
-    if (!m_finished_level && is_pressing_jump && rb->grounded) {
-        velocity.y = -JUMP_FORCE;
+    if (!m_finished_level && is_pressing_jump && (rb->grounded || is_birb)) {
+        velocity.y = -jump_force;
     }
 
     // update sprite rotation
@@ -65,16 +101,18 @@ void Player::movement() {
     }
 
     if (!rb->grounded && !game.m_paused) {
-        if (velocity.x > 0) {
-            m_rotation += 180.0f * game.m_fixed_frametime;
+        if (is_birb) {
+            m_rotation = d_math::lerp(m_rotation, get_angle_tilt(velocity.y, jump_force, 45.0f), 0.25f);
         } else {
-            m_rotation -= 180.0f * game.m_fixed_frametime;
+            if (velocity.x > 0) {
+                m_rotation += 180.0f * game.m_fixed_frametime;
+            } else {
+                m_rotation -= 180.0f * game.m_fixed_frametime;
+            }
         }
-    } else {
-        if (!game.m_paused) {
-            float target_angle = std::round(m_rotation / 90.0f) * 90.0f;
-            m_rotation = d_math::lerp(m_rotation, target_angle, 0.2f);
-        }
+    } else if (!game.m_paused) {
+        float target_angle = is_birb ? 0.0f : std::round(m_rotation / 90.0f) * 90.0f;
+        m_rotation = d_math::lerp(m_rotation, target_angle, 0.2f);
     }
 }
 
@@ -87,12 +125,12 @@ void Player::render() {
     float texture_width = static_cast<float>(texture.width);
     float texture_height = static_cast<float>(texture.height);
 
-    Rectangle source = {0.0f, 0.0f, texture_width, texture_height};
+    Rectangle source = {0.0f, 0.0f, m_should_flip_player ? -texture_width : texture_width, texture_height};
 
     Rectangle dest = {interpolated_position.x + texture_width / 2.0f, interpolated_position.y + texture_height / 2.0f,
                       texture_width, texture_height};
 
     Vector2 origin = {texture_width / 2.0f, texture_height / 2.0f};
 
-    DrawTexturePro(texture, source, dest, origin, m_rotation, WHITE);
+    DrawTexturePro(texture, source, dest, origin, m_should_flip_player ? -m_rotation : m_rotation, WHITE);
 }

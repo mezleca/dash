@@ -16,7 +16,7 @@ static constexpr float CAMERA_PLATFORM_X_THRESHOLD = 200.0f;
 static constexpr float CAMERA_PLATFORM_Y_THRESHOLD = 1000.0f;
 static constexpr float CAMERA_Y_SMOOTHING = 0.09f;
 static constexpr float CAMERA_X_LOOK_AHEAD = 128.0f;
-static constexpr float CAMERA_Y_LOOK_AHEAD = -32.0f;
+static constexpr float CAMERA_Y_LOOK_AHEAD = -128.0f;
 
 Game::Game() {
     m_ui.mode = UIMode::MENU;

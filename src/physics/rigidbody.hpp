@@ -2,21 +2,23 @@
 
 #include <functional>
 
-constexpr float GRAVITY = 5332.5f;
+constexpr float DEFAULT_GRAVITY = 5332.5f;
 constexpr float FALL_MAX_SPEED = 2237.0f;
-constexpr float HORIZONTAL_DAMPING = 12.0f;
+constexpr float DEFAULT_HORIZONTAL_DAMPING = 12.0f;
 
 struct GameObject;
 
 struct RigidBody {
   public:
-    explicit RigidBody(GameObject* _obj) : obj(_obj) {
-    }
+    explicit RigidBody(GameObject* _obj);
 
     std::function<void(GameObject*)> on_hit = nullptr;
 
     GameObject* obj;
     GameObject* last_hit;
+
+    float m_gravity = 0.0f;
+    float m_horizontal_damp = 0.0f;
 
     bool is_static = false;
     bool is_trigger = false;

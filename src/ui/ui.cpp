@@ -1,10 +1,12 @@
 #include "ui.hpp"
 #include "../game/game.hpp"
 #include "../entity/player.hpp"
+#include "helper.hpp"
+#include "imgui.h"
+#include "raylib.h"
+#include "theme.hpp"
 
-#include <raylib.h>
 #include <rlImGui.h>
-#include <imgui.h>
 #include <string>
 
 static constexpr ImGuiWindowFlags BASIC_WINDOW_FLAGS = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
@@ -14,9 +16,105 @@ static constexpr ImGuiWindowFlags POPUP_WINDOW_FLAGS = ImGuiWindowFlags_NoDecora
 
 static constexpr ImGuiChildFlags POPUP_CHILD_FLAGS = ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY;
 
-void UI::render_main_menu() {
-    ImGuiStyle& style = ImGui::GetStyle();
+void UI::initialize() {
+    m_logo_texture = LoadTexture("resources/ui/logo.png");
 
+    m_io = &ImGui::GetIO();
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    ImVec4* colors = style.Colors;
+
+    style.WindowRounding = 0.0f;
+    style.ChildRounding = 0.0f;
+    style.FrameRounding = 4.0f;
+    style.PopupRounding = 6.0f;
+    style.GrabRounding = 4.0f;
+    style.TabRounding = 4.0f;
+    style.WindowPadding = ImVec2{0.0f, 0.0f};
+    style.FramePadding = ImVec2{12.0f, 8.0f};
+    style.ItemSpacing = ImVec2{10.0f, 10.0f};
+    style.ItemInnerSpacing = ImVec2{8.0f, 6.0f};
+    style.CellPadding = ImVec2{0.0f, 0.0f};
+
+    m_io->IniFilename = NULL;
+    m_io->LogFilename = NULL;
+
+    ImFontConfig font_cfg;
+    font_cfg.PixelSnapH = false;
+    font_cfg.OversampleH = 5;
+    font_cfg.OversampleV = 5;
+    font_cfg.RasterizerMultiply = 1.2f;
+
+    m_fonts[BALOO][FONT_SMALL] = m_io->Fonts->AddFontFromFileTTF("resources/fonts/Baloo-Regular.ttf", 16.0f, &font_cfg);
+    m_fonts[BALOO][FONT_MEDIUM] =
+        m_io->Fonts->AddFontFromFileTTF("resources/fonts/Baloo-Regular.ttf", 20.0f, &font_cfg);
+    m_fonts[BALOO][FONT_LARGE] = m_io->Fonts->AddFontFromFileTTF("resources/fonts/Baloo-Regular.ttf", 26.0f, &font_cfg);
+}
+
+bool UI::render_level_button(std::string_view text, bool selected) {
+    bool is_selected = false;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ui_theme::LEVEL_BUTTON_PADDING);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, ui_theme::LEVEL_BUTTON_BORDER_SIZE);
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ui_theme::TRANSPARENT_COLOR);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ui_theme::TRANSPARENT_COLOR);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ui_theme::TRANSPARENT_COLOR);
+
+    ImGui::PushFont(m_fonts[BALOO][FONT_LARGE]);
+
+    is_selected = ImGui::Button(text.data(), ui_theme::LEVEL_BUTTON_SIZE);
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->Flags |= ImDrawListFlags_AntiAliasedLines;
+    dl->Flags |= ImDrawListFlags_AntiAliasedFill;
+
+    auto rect_min = ImGui::GetItemRectMin();
+    auto rect_max = ImGui::GetItemRectMax();
+
+    dl->AddRect({rect_min.x + 0.5f, rect_min.y + 0.5f}, {rect_max.x + 0.5f, rect_max.y + 0.5f},
+                selected ? IM_COL32(0, 40, 200, 255) : IM_COL32(90, 90, 90, 200), 4.0f, 0, 2.0f);
+
+    ImGui::PopFont();
+    ImGui::PopStyleVar(2);
+    ImGui::PopStyleColor(3);
+
+    return is_selected;
+}
+
+bool UI::render_button(std::string_view text, ImVec2 padding, ImVec2 size) {
+    bool is_selected = false;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, padding);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
+
+    ImGui::PushStyleColor(ImGuiCol_Button, {20.0f / 255.0f, 25.0f / 255.0f, 25.0f / 255.0f, 1.0f});
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, {25.0f / 255.0f, 25.0f / 255.0f, 25.0f / 255.0f, 1.0f});
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, {25.0f / 255.0f, 25.0f / 255.0f, 25.0f / 255.0f, 1.0f});
+
+    ImGui::PushFont(m_fonts[BALOO][FONT_MEDIUM]);
+
+    is_selected = ImGui::Button(text.data(), size);
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->Flags |= ImDrawListFlags_AntiAliasedLines;
+    dl->Flags |= ImDrawListFlags_AntiAliasedFill;
+
+    auto rect_min = ImGui::GetItemRectMin();
+    auto rect_max = ImGui::GetItemRectMax();
+
+    dl->AddRect({rect_min.x + 0.5f, rect_min.y + 0.5f}, {rect_max.x + 0.5f, rect_max.y + 0.5f},
+                ImGui::IsItemHovered() ? IM_COL32(0, 40, 200, 255) : IM_COL32(90, 90, 90, 200), 4.0f, 0, 2.0f);
+
+    ImGui::PopFont();
+    ImGui::PopStyleVar(3);
+    ImGui::PopStyleColor(3);
+
+    return is_selected;
+}
+
+void UI::render_main_menu() {
     static const ImGuiViewport* viewport = ImGui::GetMainViewport();
 
     // use the entire viewport
@@ -32,44 +130,56 @@ void UI::render_main_menu() {
 
         ImGui::BeginChild("##container", available, ImGuiChildFlags_None, ImGuiWindowFlags_None);
         {
-            float size = ImGui::CalcTextSize("play").x + style.FramePadding.x * 2.0f;
-            float off = (available.x - size) * 0.5f;
+            // render logo
+            float padding_v = available.y * 5.0f / 100.0f;
 
-            ImGui::SetCursorPosX(ImGui::GetCursorPosX() + off);
-            ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10.0f);
+            ImGui::SetCursorPosY(padding_v);
+
+            ui_helper::center_next_item_x((float)m_logo_texture.width);
+            ImGui::Image((ImTextureID)m_logo_texture.id, {(float)m_logo_texture.width, (float)m_logo_texture.height});
+            ImGui::Dummy({0.0f, ui_theme::MAIN_MENU_VERTICAL_PADDING});
 
             static std::string selected_level;
-            static std::string selected_level_label = "select level";
 
-            (void)game.m_player;
+            const int levels_count = static_cast<int>(game.m_levels.size());
+            const int table_columns_count = levels_count + 2;
 
-            if (ImGui::BeginCombo("level", selected_level_label.c_str())) {
+            ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ui_theme::LEVEL_TABLE_PADDING);
+
+            if (ImGui::BeginTable("levels", table_columns_count, ImGuiTableFlags_None)) {
+                ImGui::TableSetupColumn("##left-padding", ImGuiTableColumnFlags_WidthStretch);
+
+                for (int column = 0; column < levels_count; column++) {
+                    ImGui::TableSetupColumn("##level", ImGuiTableColumnFlags_WidthFixed, ui_theme::LEVEL_BUTTON_SIZE.x);
+                }
+
+                ImGui::TableSetupColumn("##right-padding", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableNextRow();
+
+                int level_col = 1;
+
                 for (const auto& level_it : game.m_levels) {
-                    auto* level = level_it.second;
+                    ImGui::TableSetColumnIndex(level_col);
 
-                    const std::string& level_id = level_it.first;
-                    const char* level_name = level->m_name.c_str();
+                    DashLevel* level = level_it.second;
 
-                    ImGui::PushID(level_id.c_str());
-
-                    if (ImGui::Selectable(level_name, selected_level == level_id, ImGuiSelectableFlags_SelectOnNav)) {
-                        selected_level = level_id;
-                        selected_level_label = level_name;
+                    if (render_level_button(level->m_name, selected_level == level->m_file)) {
+                        selected_level = level->m_file;
                     }
 
-                    if (selected_level == level_id) {
-                        ImGui::SetItemDefaultFocus();
-                    }
-
-                    ImGui::PopID();
+                    level_col++;
                 }
-                ImGui::EndCombo();
+
+                ImGui::EndTable();
             }
+            ImGui::PopStyleVar(1);
 
-            if (ImGui::Button("play")) {
-                if (!selected_level.empty()) {
-                    game.load_level(selected_level, UIMode::PLAYFIELD);
-                }
+            ImGui::Dummy({0.0f, ui_theme::MAIN_MENU_VERTICAL_PADDING});
+            ui_helper::center_next_item_x(ui_theme::PLAY_BUTTON_SIZE.x);
+
+            if (render_button("play", ui_theme::PLAY_BUTTON_PADDING, ui_theme::PLAY_BUTTON_SIZE) &&
+                !selected_level.empty()) {
+                game.load_level(selected_level, UIMode::PLAYFIELD);
             }
         }
         ImGui::EndChild();
@@ -95,6 +205,8 @@ void UI::render_debug_ui() {
         ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
         ImGui::BeginChild("##debug_info", {0, 0}, POPUP_CHILD_FLAGS, ImGuiWindowFlags_None);
         {
+            ImGui::PushFont(m_fonts[BALOO][FONT_SMALL]);
+
             ImGui::Text("FPS: %i", GetFPS());
             ImGui::Text("Frametime: %f", GetFrameTime());
 
@@ -112,7 +224,11 @@ void UI::render_debug_ui() {
 
             auto size = ImGui::GetWindowSize();
 
-            if (debug_ui_pos.x < size.x) debug_ui_pos = size;
+            if (debug_ui_pos.x < size.x) {
+                debug_ui_pos = size;
+            }
+
+            ImGui::PopFont();
         }
         ImGui::EndChild();
         ImGui::PopStyleVar(1);

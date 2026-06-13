@@ -34,6 +34,7 @@ Game::~Game() {
 }
 
 void Game::initialize() {
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(m_window.width, m_window.height, m_window.title.c_str());
     InitAudioDevice();
 
@@ -44,6 +45,9 @@ void Game::initialize() {
 
     // load all levels data (objects will be created only when necessary)
     load_all_levels();
+
+    // load ui textures, etc...
+    m_ui.initialize();
 
     while (!WindowShouldClose()) {
         handle_pause_state();

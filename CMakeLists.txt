@@ -15,6 +15,8 @@ set(BUILD_GAMES    OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_WAYLAND ON CACHE BOOL "" FORCE)
 set(GLFW_BUILD_X11 OFF CACHE BOOL "" FORCE)
 
+find_package(OpenGL REQUIRED)
+
 add_subdirectory(vendor/raylib)
 add_subdirectory(vendor/json)
 
@@ -24,6 +26,7 @@ file(GLOB IMGUI_CORE_SOURCES "vendor/imgui/*.cpp")
 
 add_executable(${PROJECT_NAME}
     vendor/rlimgui/rlImGui.cpp
+    vendor/stb/stb_image.h
     ${IMGUI_CORE_SOURCES}
     ${SOURCES}
     ${HEADERS}
@@ -37,4 +40,5 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 target_link_libraries(${PROJECT_NAME} PRIVATE
     raylib
     nlohmann_json
+    OpenGL::GL
 )

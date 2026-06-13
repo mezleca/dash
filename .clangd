@@ -1,0 +1,9 @@
+---
+Index:
+  Background: Build
+
+---
+If:
+  PathMatch: [vendor/.*]
+Index:
+  Background: Skip

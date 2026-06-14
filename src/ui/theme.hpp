@@ -3,11 +3,11 @@
 #include "imgui.h"
 
 namespace ui_theme {
-    inline constexpr ImVec2 LEVEL_BUTTON_SIZE = ImVec2{128.0f, 128.0f};
+    inline constexpr ImVec2 LEVEL_BUTTON_SIZE = ImVec2{300.0f, 200.0f};
     inline constexpr ImVec2 LEVEL_BUTTON_PADDING = ImVec2{8.0f, 6.0f};
     inline constexpr ImVec2 LEVEL_TABLE_PADDING = ImVec2{12.0f, 12.0f};
-    inline constexpr ImVec2 PLAY_BUTTON_SIZE = ImVec2{288.0f, 48.0f};
-    inline constexpr ImVec2 PLAY_BUTTON_PADDING = ImVec2{12.0f, 12.0f};
+    inline constexpr ImVec2 BUTTON_SIZE = ImVec2{120.0f, 80.0f};
+    inline constexpr ImVec2 BUTTON_PADDING = ImVec2{12.0f, 12.0f};
 
     inline constexpr float MAIN_MENU_VERTICAL_PADDING = 36.0f;
     inline constexpr float LEVEL_BUTTON_BORDER_SIZE = 0.0f;

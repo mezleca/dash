@@ -3,7 +3,6 @@
 #include "../entity/player.hpp"
 #include "helper.hpp"
 #include "imgui.h"
-#include "raylib.h"
 #include "theme.hpp"
 
 #include <rlImGui.h>
@@ -73,7 +72,8 @@ bool UI::render_level_button(std::string_view text, bool selected) {
     auto rect_max = ImGui::GetItemRectMax();
 
     dl->AddRect({rect_min.x + 0.5f, rect_min.y + 0.5f}, {rect_max.x + 0.5f, rect_max.y + 0.5f},
-                selected ? IM_COL32(0, 40, 200, 255) : IM_COL32(90, 90, 90, 200), 4.0f, 0, 2.0f);
+                selected || ImGui::IsItemHovered() ? IM_COL32(0, 40, 200, 255) : IM_COL32(90, 90, 90, 200), 4.0f, 0,
+                2.0f);
 
     ImGui::PopFont();
     ImGui::PopStyleVar(2);
@@ -114,10 +114,42 @@ bool UI::render_button(std::string_view text, ImVec2 padding, ImVec2 size) {
     return is_selected;
 }
 
-void UI::render_main_menu() {
+bool UI::render_menu_button(std::string_view text, ImVec2 padding, ImVec2 size) {
+    bool is_selected = false;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, padding);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
+
+    ImGui::PushStyleColor(ImGuiCol_Button, ui_theme::TRANSPARENT_COLOR);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ui_theme::TRANSPARENT_COLOR);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ui_theme::TRANSPARENT_COLOR);
+
+    ImGui::PushFont(m_fonts[BALOO][FONT_MEDIUM]);
+
+    is_selected = ImGui::Button(text.data(), size);
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->Flags |= ImDrawListFlags_AntiAliasedLines;
+    dl->Flags |= ImDrawListFlags_AntiAliasedFill;
+
+    auto rect_size = ImGui::GetItemRectSize();
+    auto rect_min = ImGui::GetItemRectMin();
+
+    dl->AddLine({rect_min.x + 0.5f, rect_min.y + 0.5f + rect_size.y + 2.0f},
+                {rect_min.x + 0.5f + rect_size.x, rect_min.y + 0.5f + rect_size.y + 2.0f},
+                ImGui::IsItemHovered() ? IM_COL32(0, 40, 200, 255) : IM_COL32(90, 90, 90, 200), 2.0f);
+
+    ImGui::PopFont();
+    ImGui::PopStyleVar(3);
+    ImGui::PopStyleColor(3);
+
+    return is_selected;
+}
+
+void UI::render_level_selector() {
     static const ImGuiViewport* viewport = ImGui::GetMainViewport();
 
-    // use the entire viewport
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
@@ -130,17 +162,6 @@ void UI::render_main_menu() {
 
         ImGui::BeginChild("##container", available, ImGuiChildFlags_None, ImGuiWindowFlags_None);
         {
-            // render logo
-            float padding_v = available.y * 5.0f / 100.0f;
-
-            ImGui::SetCursorPosY(padding_v);
-
-            ui_helper::center_next_item_x((float)m_logo_texture.width);
-            ImGui::Image((ImTextureID)m_logo_texture.id, {(float)m_logo_texture.width, (float)m_logo_texture.height});
-            ImGui::Dummy({0.0f, ui_theme::MAIN_MENU_VERTICAL_PADDING});
-
-            static std::string selected_level;
-
             const int levels_count = static_cast<int>(game.m_levels.size());
             const int table_columns_count = levels_count + 2;
 
@@ -163,8 +184,8 @@ void UI::render_main_menu() {
 
                     DashLevel* level = level_it.second;
 
-                    if (render_level_button(level->m_name, selected_level == level->m_file)) {
-                        selected_level = level->m_file;
+                    if (render_level_button(level->m_name, false)) {
+                        game.load_level(level->m_file.c_str(), UIMode::PLAYFIELD);
                     }
 
                     level_col++;
@@ -174,12 +195,80 @@ void UI::render_main_menu() {
             }
             ImGui::PopStyleVar(1);
 
-            ImGui::Dummy({0.0f, ui_theme::MAIN_MENU_VERTICAL_PADDING});
-            ui_helper::center_next_item_x(ui_theme::PLAY_BUTTON_SIZE.x);
+            // render back button
+            {
+                ImVec2 size = {48.0f, 32.0f};
+                float spacing = 12.0f;
 
-            if (render_button("play", ui_theme::PLAY_BUTTON_PADDING, ui_theme::PLAY_BUTTON_SIZE) &&
-                !selected_level.empty()) {
-                game.load_level(selected_level, UIMode::PLAYFIELD);
+                ImGui::SetCursorPos({10.0f, available.y - size.y - spacing});
+
+                if (render_button("back", {}, size) && previous_mode != UIMode::NONE) {
+                    change_ui_mode(previous_mode);
+                }
+            }
+        }
+        ImGui::EndChild();
+    }
+    ImGui::End();
+    ImGui::PopStyleVar(3);
+}
+
+void UI::render_main_menu() {
+    static const ImGuiViewport* viewport = ImGui::GetMainViewport();
+
+    // use the entire viewport
+    ImGui::SetNextWindowPos(viewport->WorkPos);
+    ImGui::SetNextWindowSize(viewport->WorkSize);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
+
+    ImGui::Begin("##main-menu", nullptr, BASIC_WINDOW_FLAGS);
+    {
+        const ImVec2 available = ImGui::GetContentRegionAvail();
+
+        ImGui::BeginChild("##container", available, ImGuiChildFlags_None, ImGuiWindowFlags_None);
+        {
+            // render logo
+            {
+                float padding_v = available.y * 25.0f / 100.0f;
+                ImGui::SetCursorPosY(padding_v);
+
+                ui_helper::center_next_item_x((float)m_logo_texture.width);
+
+                ImGui::Image((ImTextureID)m_logo_texture.id,
+                             {(float)m_logo_texture.width, (float)m_logo_texture.height});
+                ImGui::Dummy({0.0f, ui_theme::MAIN_MENU_VERTICAL_PADDING});
+            }
+
+            // render menu buttons
+            {
+                float available_width = ImGui::GetContentRegionAvail().x;
+
+                ImVec2 button_size = {150.0f, 32.0f};
+                int num_buttons = 3;
+
+                float spacing = ImGui::GetStyle().ItemSpacing.x;
+                float width = (num_buttons * button_size.x) + (num_buttons - 1) * spacing;
+                float start = (available_width - width) * 0.5f;
+
+                ImGui::SetCursorPosX(start);
+
+                if (render_menu_button("play", ui_theme::BUTTON_PADDING, button_size)) {
+                    change_ui_mode(UIMode::LEVEL);
+                }
+
+                ImGui::SameLine();
+
+                if (render_menu_button("settings", ui_theme::BUTTON_PADDING, button_size)) {
+                    change_ui_mode(UIMode::OPTIONS);
+                }
+
+                ImGui::SameLine();
+
+                if (render_menu_button("exit", ui_theme::BUTTON_PADDING, button_size)) {
+                    game.m_finished = true;
+                }
             }
         }
         ImGui::EndChild();

@@ -1,11 +1,12 @@
 #pragma once
 
+#include <iostream>
 #include <raylib.h>
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <string_view>
 
-enum class UIMode : int { NONE = 0, MENU = 1 << 0, OPTIONS = 1 << 1, PLAYFIELD = 1 << 2 };
+enum class UIMode : int { NONE = 0, MENU = 1 << 0, LEVEL = 1 << 1, OPTIONS = 1 << 2, PLAYFIELD = 1 << 3 };
 
 enum UI_FONTS { BALOO = 0, FONT_COUNT };
 enum UI_FONT_VAR { FONT_SMALL = 0, FONT_MEDIUM, FONT_LARGE, FONT_VAR_COUNT };
@@ -30,6 +31,7 @@ struct UI {
     void initialize();
 
     UIMode mode;
+    UIMode previous_mode;
 
     // playfield state
     bool m_playfield_container_open = false;
@@ -44,13 +46,21 @@ struct UI {
         m_show_finished = false;
     }
 
+    void change_ui_mode(UIMode _mode) {
+        std::cout << "[ui] saving previous mode: " << static_cast<int>(mode) << "\n";
+        if (_mode != UIMode::PLAYFIELD) previous_mode = mode;
+        mode = _mode;
+    }
+
     void render_main_menu();
+    void render_level_selector();
     void render_debug_ui();
     void render_playfield_ui();
 
     // components
     bool render_level_button(std::string_view text, bool selected);
     bool render_button(std::string_view text, ImVec2 padding, ImVec2 size = {64.0f, 64.0f});
+    bool render_menu_button(std::string_view text, ImVec2 padding, ImVec2 size = {80.0f, 40.0f});
 
   private:
     ImGuiIO* m_io;

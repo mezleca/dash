@@ -19,7 +19,9 @@ static constexpr float CAMERA_X_LOOK_AHEAD = 128.0f;
 static constexpr float CAMERA_Y_LOOK_AHEAD = -128.0f;
 
 Game::Game() {
-    m_ui.mode = UIMode::MENU;
+    m_finished = false;
+
+    m_ui.change_ui_mode(UIMode::MENU);
 
     m_window.title = "dash";
     m_window.width = 1280;
@@ -49,7 +51,7 @@ void Game::initialize() {
     // load ui textures, etc...
     m_ui.initialize();
 
-    while (!WindowShouldClose()) {
+    while (!m_finished) {
         handle_pause_state();
         update_simulation_timestep();
 
@@ -205,8 +207,9 @@ void Game::load_level(std::string_view location, UIMode mode) {
     m_paused = false;
     m_was_paused = false;
     m_best_object = nullptr;
-    m_ui.mode = mode;
     m_current_level = level;
+
+    m_ui.change_ui_mode(mode);
 
     std::cout << "loaded " << location << " succefully" << "\n";
 }
@@ -224,7 +227,7 @@ void Game::unload_current_level() {
 
     delete m_player;
 
-    m_ui.mode = UIMode::MENU;
+    m_ui.change_ui_mode(m_ui.previous_mode);
     m_ui.reset_playfield_state();
 
     m_paused = false;
@@ -299,11 +302,19 @@ void Game::simulate() {
     m_camera.offset = {m_window.width / 2.0f, m_window.height / 2.0f};
 }
 
+// TOFIX: this is a mess
+// it would be way better to have each ui level as a "modal" so i can show multiple shit at the same time
 void Game::render() {
     if (m_ui.mode == UIMode::MENU) {
         rlImGuiBegin();
         {
             m_ui.render_main_menu();
+        }
+        rlImGuiEnd();
+    } else if (m_ui.mode == UIMode::LEVEL) {
+        rlImGuiBegin();
+        {
+            m_ui.render_level_selector();
         }
         rlImGuiEnd();
     } else if (m_ui.mode == UIMode::PLAYFIELD) {

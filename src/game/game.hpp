@@ -44,8 +44,10 @@ struct Game {
     std::vector<GameObject*> m_objects;
     std::unordered_map<std::string, DashLevel*> m_levels;
 
+    // window
     float m_fixed_frametime = DEFAULT_FIXED_FRAMETIME;
     float m_alpha = 0.0f;
+    bool m_finished = false;
 
     // pause
     bool m_paused = false;

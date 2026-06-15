@@ -3,12 +3,12 @@
 projetinho pra testar raylib
 
 ## TODO
-### core
+### CORE
 - [x] fisica basica configuravel por objeto
 - [x] sistema de level com serializacao via json
 - [x] pause / unpause 
 
-### ui
+### UI
 - [x] main menu
 - [x] debug ui
 - [ ] level selector (WIP)
@@ -16,8 +16,8 @@ projetinho pra testar raylib
 - [ ] playfield: level progress bar
 - [x] playfield: pause / death ui
 
-### gameplay
-- [ ] implementar SAT (Separating Axis Theorem) para detectao de colisoes em vez de aabb simples
+### GAMEPLAY
+- [ ] SAT (Separating Axis Theorem) para detectao de colisoes em vez de aabb simples
 - [x] object: spike
 - [x] object: platform
 - [ ] object: trigger

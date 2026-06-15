@@ -57,7 +57,6 @@ struct Game {
     GameObject* m_best_object = nullptr;
     float m_focus_y = 0.0f;
 
-    // this will def fuck me later
     void add_game_object(GameObject* obj) {
         obj->id = m_objects.size();
         m_objects.push_back(obj);
@@ -76,10 +75,12 @@ struct Game {
     void render();
 
     // level related stuff
-    void load_level(std::string_view id, UIMode mode);
+    void load_level(std::string_view id);
     void unload_current_level();
+    void restart_current_level();
     void load_all_levels();
     void finish_level();
+    void kill_player();
 
     // camera related stuff
     void update_camera_focus(GameObject* obj);

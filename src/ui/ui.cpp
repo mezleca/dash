@@ -1,23 +1,19 @@
 #include "ui.hpp"
 #include "../game/game.hpp"
 #include "../entity/player.hpp"
-#include "helper.hpp"
-#include "imgui.h"
+#include "modals/death.hpp"
+#include "modals/finish.hpp"
+#include "modals/pause.hpp"
 #include "theme.hpp"
 
+#include <algorithm>
+#include <iterator>
 #include <rlImGui.h>
-#include <string>
 
 static constexpr ImGuiWindowFlags BASIC_WINDOW_FLAGS = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
                                                        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings;
 
-static constexpr ImGuiWindowFlags POPUP_WINDOW_FLAGS = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoSavedSettings;
-
-static constexpr ImGuiChildFlags POPUP_CHILD_FLAGS = ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY;
-
 void UI::initialize() {
-    m_logo_texture = LoadTexture("resources/ui/logo.png");
-
     m_io = &ImGui::GetIO();
 
     ImGuiStyle& style = ImGui::GetStyle();
@@ -35,8 +31,8 @@ void UI::initialize() {
     style.ItemInnerSpacing = ImVec2{8.0f, 6.0f};
     style.CellPadding = ImVec2{0.0f, 0.0f};
 
-    m_io->IniFilename = NULL;
-    m_io->LogFilename = NULL;
+    m_io->IniFilename = nullptr;
+    m_io->LogFilename = nullptr;
 
     ImFontConfig font_cfg;
     font_cfg.PixelSnapH = false;
@@ -48,6 +44,124 @@ void UI::initialize() {
     m_fonts[BALOO][FONT_MEDIUM] =
         m_io->Fonts->AddFontFromFileTTF("resources/fonts/Baloo-Regular.ttf", 20.0f, &font_cfg);
     m_fonts[BALOO][FONT_LARGE] = m_io->Fonts->AddFontFromFileTTF("resources/fonts/Baloo-Regular.ttf", 26.0f, &font_cfg);
+
+    m_debug_modal = new DebugModal(this);
+    m_death_modal = new DeathModal(this);
+    m_finish_modal = new FinishModal(this);
+    m_level_selector_modal = new LevelSelectorModal(this);
+    m_menu_modal = new MenuModal(this);
+    m_pause_modal = new PauseModal(this);
+    m_player_modal = new PlayerModal(this);
+
+    show_modal(m_menu_modal);
+}
+
+bool UI::is_modal_focused(UIModal* modal) const {
+    if (m_modals.empty()) {
+        return false;
+    }
+
+    return m_modals.back() == modal;
+}
+
+bool UI::has_modal(std::string_view id) const {
+    return std::any_of(m_modals.begin(), m_modals.end(), [id](const UIModal* modal) { return modal->m_id == id; });
+}
+
+UIModal* UI::focused_modal() const {
+    if (m_modals.empty()) {
+        return nullptr;
+    }
+
+    return m_modals.back();
+}
+
+void UI::show_modal(UIModal* modal, bool wipe) {
+    if (modal == nullptr) {
+        return;
+    }
+
+    if (wipe) {
+        clear_modals();
+    }
+
+    m_modals.push_back(modal);
+}
+
+bool UI::remove_modal(std::string_view id, bool remove_all) {
+    bool removed = false;
+
+    if (!remove_all) {
+        for (auto it = m_modals.rbegin(); it != m_modals.rend(); it++) {
+            UIModal* modal = *it;
+
+            if (modal->m_id != id) {
+                continue;
+            }
+
+            modal->on_remove();
+            m_modals.erase(std::next(it).base());
+            return true;
+        }
+
+        return false;
+    }
+
+    for (auto it = m_modals.begin(); it != m_modals.end();) {
+        UIModal* modal = *it;
+
+        if (modal->m_id != id) {
+            it++;
+            continue;
+        }
+
+        modal->on_remove();
+        it = m_modals.erase(it);
+        removed = true;
+    }
+
+    return removed;
+}
+
+bool UI::remove_focused_modal() {
+    UIModal* modal = focused_modal();
+
+    if (modal == nullptr) {
+        return false;
+    }
+
+    modal->on_remove();
+    m_modals.pop_back();
+    return true;
+}
+
+void UI::clear_modals() {
+    for (UIModal* modal : m_modals) {
+        modal->on_remove();
+    }
+
+    m_modals.clear();
+}
+
+void UI::handle_escape() {
+    if (!IsKeyPressed(KEY_ESCAPE)) {
+        return;
+    }
+
+    UIModal* modal = focused_modal();
+
+    if (modal != nullptr && modal->m_remove_on_escape) {
+        remove_focused_modal();
+        return;
+    }
+
+    if (game.m_current_level == nullptr || !game.m_can_pause || game.m_paused || game.m_player == nullptr ||
+        game.m_player->m_finished_level) {
+        return;
+    }
+
+    game.m_paused = true;
+    show_modal(m_pause_modal);
 }
 
 bool UI::render_level_button(std::string_view text, bool selected) {
@@ -84,10 +198,12 @@ bool UI::render_level_button(std::string_view text, bool selected) {
 
 bool UI::render_button(std::string_view text, ImVec2 padding, ImVec2 size) {
     bool is_selected = false;
+    const ImVec2 frame_padding = {padding.x, 0.0f};
 
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, padding);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, frame_padding);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, {0.5f, 0.5f});
 
     ImGui::PushStyleColor(ImGuiCol_Button, {20.0f / 255.0f, 25.0f / 255.0f, 25.0f / 255.0f, 1.0f});
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, {25.0f / 255.0f, 25.0f / 255.0f, 25.0f / 255.0f, 1.0f});
@@ -108,7 +224,7 @@ bool UI::render_button(std::string_view text, ImVec2 padding, ImVec2 size) {
                 ImGui::IsItemHovered() ? IM_COL32(0, 40, 200, 255) : IM_COL32(90, 90, 90, 200), 4.0f, 0, 2.0f);
 
     ImGui::PopFont();
-    ImGui::PopStyleVar(3);
+    ImGui::PopStyleVar(4);
     ImGui::PopStyleColor(3);
 
     return is_selected;
@@ -147,246 +263,28 @@ bool UI::render_menu_button(std::string_view text, ImVec2 padding, ImVec2 size) 
     return is_selected;
 }
 
-void UI::render_level_selector() {
+void UI::render() {
     static const ImGuiViewport* viewport = ImGui::GetMainViewport();
 
-    ImGui::SetNextWindowPos(viewport->WorkPos);
-    ImGui::SetNextWindowSize(viewport->WorkSize);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
-
-    ImGui::Begin("##main-menu", nullptr, BASIC_WINDOW_FLAGS);
-    {
-        const ImVec2 available = ImGui::GetContentRegionAvail();
-
-        ImGui::BeginChild("##container", available, ImGuiChildFlags_None, ImGuiWindowFlags_None);
-        {
-            const int levels_count = static_cast<int>(game.m_levels.size());
-            const int table_columns_count = levels_count + 2;
-
-            ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, ui_theme::LEVEL_TABLE_PADDING);
-
-            if (ImGui::BeginTable("levels", table_columns_count, ImGuiTableFlags_None)) {
-                ImGui::TableSetupColumn("##left-padding", ImGuiTableColumnFlags_WidthStretch);
-
-                for (int column = 0; column < levels_count; column++) {
-                    ImGui::TableSetupColumn("##level", ImGuiTableColumnFlags_WidthFixed, ui_theme::LEVEL_BUTTON_SIZE.x);
-                }
-
-                ImGui::TableSetupColumn("##right-padding", ImGuiTableColumnFlags_WidthStretch);
-                ImGui::TableNextRow();
-
-                int level_col = 1;
-
-                for (const auto& level_it : game.m_levels) {
-                    ImGui::TableSetColumnIndex(level_col);
-
-                    DashLevel* level = level_it.second;
-
-                    if (render_level_button(level->m_name, false)) {
-                        game.load_level(level->m_file.c_str(), UIMode::PLAYFIELD);
-                    }
-
-                    level_col++;
-                }
-
-                ImGui::EndTable();
-            }
-            ImGui::PopStyleVar(1);
-
-            // render back button
-            {
-                ImVec2 size = {48.0f, 32.0f};
-                float spacing = 12.0f;
-
-                ImGui::SetCursorPos({10.0f, available.y - size.y - spacing});
-
-                if (render_button("back", {}, size) && previous_mode != UIMode::NONE) {
-                    change_ui_mode(previous_mode);
-                }
-            }
-        }
-        ImGui::EndChild();
-    }
-    ImGui::End();
-    ImGui::PopStyleVar(3);
-}
-
-void UI::render_main_menu() {
-    static const ImGuiViewport* viewport = ImGui::GetMainViewport();
-
-    // use the entire viewport
-    ImGui::SetNextWindowPos(viewport->WorkPos);
-    ImGui::SetNextWindowSize(viewport->WorkSize);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
-
-    ImGui::Begin("##main-menu", nullptr, BASIC_WINDOW_FLAGS);
-    {
-        const ImVec2 available = ImGui::GetContentRegionAvail();
-
-        ImGui::BeginChild("##container", available, ImGuiChildFlags_None, ImGuiWindowFlags_None);
-        {
-            // render logo
-            {
-                float padding_v = available.y * 25.0f / 100.0f;
-                ImGui::SetCursorPosY(padding_v);
-
-                ui_helper::center_next_item_x((float)m_logo_texture.width);
-
-                ImGui::Image((ImTextureID)m_logo_texture.id,
-                             {(float)m_logo_texture.width, (float)m_logo_texture.height});
-                ImGui::Dummy({0.0f, ui_theme::MAIN_MENU_VERTICAL_PADDING});
-            }
-
-            // render menu buttons
-            {
-                float available_width = ImGui::GetContentRegionAvail().x;
-
-                ImVec2 button_size = {150.0f, 32.0f};
-                int num_buttons = 3;
-
-                float spacing = ImGui::GetStyle().ItemSpacing.x;
-                float width = (num_buttons * button_size.x) + (num_buttons - 1) * spacing;
-                float start = (available_width - width) * 0.5f;
-
-                ImGui::SetCursorPosX(start);
-
-                if (render_menu_button("play", ui_theme::BUTTON_PADDING, button_size)) {
-                    change_ui_mode(UIMode::LEVEL);
-                }
-
-                ImGui::SameLine();
-
-                if (render_menu_button("settings", ui_theme::BUTTON_PADDING, button_size)) {
-                    change_ui_mode(UIMode::OPTIONS);
-                }
-
-                ImGui::SameLine();
-
-                if (render_menu_button("exit", ui_theme::BUTTON_PADDING, button_size)) {
-                    game.m_finished = true;
-                }
-            }
-        }
-        ImGui::EndChild();
-    }
-    ImGui::End();
-    ImGui::PopStyleVar(3);
-}
-
-void UI::render_debug_ui() {
-    ImGuiStyle& style = ImGui::GetStyle();
-
-    static const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    static ImVec2 debug_ui_pos = {0, 0};
-
-    ImGui::SetNextWindowPos({viewport->WorkSize.x - debug_ui_pos.x - 10.0f, 0.0f});
-    ImGui::SetNextWindowSize(viewport->WorkSize);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, {0.0f, 0.0f, 0.0f, 0.0f});
-
-    ImGui::Begin("##debug_ui", nullptr, BASIC_WINDOW_FLAGS);
-    {
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, {10.0f / 255.0f, 10.0f / 255.0f, 10.0f / 255.0f, 0.0f});
-        ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
-        ImGui::BeginChild("##debug_info", {0, 0}, POPUP_CHILD_FLAGS, ImGuiWindowFlags_None);
-        {
-            ImGui::PushFont(m_fonts[BALOO][FONT_SMALL]);
-
-            ImGui::Text("FPS: %i", GetFPS());
-            ImGui::Text("Frametime: %f", GetFrameTime());
-
-            if (game.m_player != nullptr) {
-                ImGui::Separator();
-                ImGui::Text("Player pos: (%.2f, %.2f)", game.m_player->position.x, game.m_player->position.y);
-                ImGui::Text("Player vel: (%.2f, %.2f)", game.m_player->velocity.x, game.m_player->velocity.y);
-            }
-
-            if (game.m_current_level != nullptr) {
-                ImGui::Separator();
-                ImGui::Text("Loaded level: %s", game.m_current_level->m_name.c_str());
-                ImGui::Text("Level progress: %f", game.m_current_level->m_current_progress);
-            }
-
-            auto size = ImGui::GetWindowSize();
-
-            if (debug_ui_pos.x < size.x) {
-                debug_ui_pos = size;
-            }
-
-            ImGui::PopFont();
-        }
-        ImGui::EndChild();
-        ImGui::PopStyleVar(1);
-        ImGui::PopStyleColor(1);
-    }
-
-    ImGui::End();
-    ImGui::PopStyleColor(1);
-    ImGui::PopStyleVar(1);
-}
-
-void UI::render_playfield_ui() {
-    ImGuiStyle& style = ImGui::GetStyle();
-    static const ImGuiViewport* viewport = ImGui::GetMainViewport();
-
-    // use the entire viewport
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
 
     ImGui::PushStyleColor(ImGuiCol_WindowBg, {0.0f, 0.0f, 0.0f, 0.0f});
-
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {0.0f, 0.0f});
 
-    ImGui::Begin("##playfield_ui", &m_playfield_container_open, BASIC_WINDOW_FLAGS);
+    ImGui::Begin("##ui", nullptr, BASIC_WINDOW_FLAGS);
     {
-        bool show_container = m_show_pause || m_show_dead || m_show_finished;
+        m_container_region = ImGui::GetContentRegionAvail();
 
-        if (show_container) {
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, {20.0f / 255.0f, 20.0f / 255.0f, 20.0f / 255.0f, 0.5f});
-            ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0.0f);
-            ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
-
-            ImGui::BeginChild("##container", viewport->WorkSize, ImGuiChildFlags_None, ImGuiWindowFlags_None);
-            {
-                if (m_show_pause) {
-                    static const char* label = "Press escape to unpause";
-
-                    ImGui::SetCursorPos(
-                        {viewport->WorkSize.x / 2.0f - ImGui::CalcTextSize(label).x, viewport->WorkSize.y / 2.0f});
-                    ImGui::TextUnformatted(label);
-                } else if (m_show_dead) {
-                    static const char* label = "Press R to reset";
-
-                    ImGui::SetCursorPos(
-                        {viewport->WorkSize.x / 2.0f - ImGui::CalcTextSize(label).x, viewport->WorkSize.y / 2.0f});
-                    ImGui::TextUnformatted(label);
-                } else {
-                    static const std::string menu_label = "Return to main menu";
-                    const std::string label = "You finished " + std::string(game.m_current_level->m_name);
-
-                    ImGui::SetCursorPos({viewport->WorkSize.x / 2.0f - ImGui::CalcTextSize(label.c_str()).x,
-                                         viewport->WorkSize.y / 2.0f});
-                    ImGui::TextUnformatted(label.c_str());
-
-                    ImGui::SetCursorPosX(viewport->WorkSize.x / 2.0f - ImGui::CalcTextSize(menu_label.c_str()).x);
-
-                    if (ImGui::Button(menu_label.c_str())) {
-                        game.unload_current_level();
-                    }
-                }
-            }
-            ImGui::EndChild();
-            ImGui::PopStyleVar(2);
-            ImGui::PopStyleColor(1);
+        for (UIModal* modal : m_modals) {
+            ImGui::SetCursorPos({0.0f, 0.0f});
+            modal->render();
         }
     }
     ImGui::End();
-    ImGui::PopStyleVar(3);
+
     ImGui::PopStyleColor(1);
+    ImGui::PopStyleVar(3);
 }

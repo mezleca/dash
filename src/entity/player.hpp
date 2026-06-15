@@ -13,6 +13,7 @@ struct Player : public GameObject {
 
     bool m_ignore_collision = false;
     bool m_finished_level = false;
+    bool m_dead = false;
     bool m_should_lock_in_horizontally = false;
 
     PlayerType m_player_type;

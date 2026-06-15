@@ -13,6 +13,7 @@ namespace ui_theme {
     inline constexpr float LEVEL_BUTTON_BORDER_SIZE = 0.0f;
 
     inline constexpr ImVec4 TRANSPARENT_COLOR = ImVec4{0.0f, 0.0f, 0.0f, 0.0f};
+    inline constexpr ImVec4 BG_COLOR = ImVec4{23.0f / 255.0f, 23.0f / 255.0f, 23.0f / 255.0f, 1.0f};
     inline constexpr ImVec4 NORMAL_BUTTON_COLOR = ImVec4{20.0f / 255.0f, 25.0f / 255.0f, 25.0f / 255.0f, 1.0f};
     inline constexpr ImVec4 SELECTED_BORDER_COLOR = ImVec4{1.0f, 1.0f, 1.0f, 1.0f};
 

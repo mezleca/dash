@@ -21,8 +21,6 @@ static constexpr float CAMERA_Y_LOOK_AHEAD = -128.0f;
 Game::Game() {
     m_finished = false;
 
-    m_ui.change_ui_mode(UIMode::MENU);
-
     m_window.title = "dash";
     m_window.width = 1280;
     m_window.height = 720;
@@ -52,6 +50,7 @@ void Game::initialize() {
     m_ui.initialize();
 
     while (!m_finished) {
+        m_ui.handle_escape();
         handle_pause_state();
         update_simulation_timestep();
 
@@ -164,9 +163,9 @@ void Game::load_all_levels() {
     }
 }
 
-void Game::load_level(std::string_view location, UIMode mode) {
+void Game::load_level(std::string_view location) {
     if (m_current_level != nullptr) {
-        std::cout << "[game] what the fuck\n";
+        std::cout << "[game] failed to load level while another level is active\n";
         return;
     }
 
@@ -198,8 +197,8 @@ void Game::load_level(std::string_view location, UIMode mode) {
     }
 
     // initialize raylib music, etc...
-    std::filesystem::path music_full_locatino = level->m_file.parent_path() / level->m_music_file;
-    level->music = LoadMusicStream(music_full_locatino.c_str());
+    std::filesystem::path music_full_location = level->m_file.parent_path() / level->m_music_file;
+    level->music = LoadMusicStream(music_full_location.c_str());
     SetMusicPan(level->music, 0.0f);
     SetMusicVolume(level->music, 0.5f);
     PlayMusicStream(level->music);
@@ -209,9 +208,11 @@ void Game::load_level(std::string_view location, UIMode mode) {
     m_best_object = nullptr;
     m_current_level = level;
 
-    m_ui.change_ui_mode(mode);
+    m_ui.clear_modals();
+    m_ui.show_modal(m_ui.m_debug_modal);
+    m_ui.show_modal(m_ui.m_player_modal);
 
-    std::cout << "loaded " << location << " succefully" << "\n";
+    std::cout << "loaded " << location << " successfully" << "\n";
 }
 
 void Game::unload_current_level() {
@@ -227,8 +228,8 @@ void Game::unload_current_level() {
 
     delete m_player;
 
-    m_ui.change_ui_mode(m_ui.previous_mode);
-    m_ui.reset_playfield_state();
+    m_ui.clear_modals();
+    m_ui.show_modal(m_ui.m_menu_modal);
 
     m_paused = false;
     m_was_paused = false;
@@ -237,14 +238,43 @@ void Game::unload_current_level() {
     m_current_level = nullptr;
 }
 
+void Game::restart_current_level() {
+    if (m_current_level == nullptr) {
+        std::cout << "[game] failed to restart current level (not found)\n";
+        return;
+    }
+
+    const std::string location = m_current_level->m_file.string();
+    unload_current_level();
+    load_level(location);
+}
+
 void Game::finish_level() {
-    // if we reach the end of the level, make player immortal to prevent bs
     m_player->m_ignore_collision = true;
     m_player->m_finished_level = true;
+    m_paused = true;
 
-    m_ui.reset_playfield_state();
-    m_ui.m_playfield_container_open = true;
-    m_ui.m_show_finished = true;
+    if (!m_ui.has_modal(ui_modal_id::FINISH)) {
+        m_ui.show_modal(m_ui.m_finish_modal);
+    }
+}
+
+void Game::kill_player() {
+    if (m_player == nullptr || m_player->m_dead || m_player->m_finished_level) {
+        return;
+    }
+
+    std::cout << "[game] player died\n";
+
+    m_player->m_dead = true;
+    m_player->m_ignore_collision = true;
+
+    m_ui.remove_modal(ui_modal_id::PAUSE, true);
+    m_paused = true;
+
+    if (!m_ui.has_modal(ui_modal_id::DEATH)) {
+        m_ui.show_modal(m_ui.m_death_modal);
+    }
 }
 
 void Game::update_camera_focus(GameObject* obj) {
@@ -256,7 +286,6 @@ void Game::update_camera_focus(GameObject* obj) {
 }
 
 void Game::simulate() {
-    if (m_ui.mode != UIMode::PLAYFIELD) return;
     if (m_player == nullptr) return;
 
     m_player->movement();
@@ -302,54 +331,20 @@ void Game::simulate() {
     m_camera.offset = {m_window.width / 2.0f, m_window.height / 2.0f};
 }
 
-// TOFIX: this is a mess
-// it would be way better to have each ui level as a "modal" so i can show multiple shit at the same time
 void Game::render() {
-    if (m_ui.mode == UIMode::MENU) {
-        rlImGuiBegin();
-        {
-            m_ui.render_main_menu();
-        }
-        rlImGuiEnd();
-    } else if (m_ui.mode == UIMode::LEVEL) {
-        rlImGuiBegin();
-        {
-            m_ui.render_level_selector();
-        }
-        rlImGuiEnd();
-    } else if (m_ui.mode == UIMode::PLAYFIELD) {
+    if (m_current_level != nullptr) {
         BeginMode2D(m_camera);
         {
-            // render all visible objects
             for (const auto& object : m_objects) {
                 object->render();
             }
         }
         EndMode2D();
-
-        // handle escape
-        {
-            static bool was_pressed = false;
-
-            if (IsKeyPressed(KEY_ESCAPE) && !was_pressed) {
-                m_ui.m_playfield_container_open = !m_ui.m_playfield_container_open;
-
-                if (game.m_can_pause) {
-                    game.m_paused = m_ui.m_playfield_container_open;
-                    m_ui.m_show_pause = game.m_paused && (!m_ui.m_show_dead || !m_ui.m_show_finished);
-                }
-
-                was_pressed = true;
-            } else {
-                was_pressed = false;
-            }
-        }
-
-        rlImGuiBegin();
-        {
-            m_ui.render_debug_ui();
-            m_ui.render_playfield_ui();
-        }
-        rlImGuiEnd();
     }
+
+    rlImGuiBegin();
+    {
+        m_ui.render();
+    }
+    rlImGuiEnd();
 }

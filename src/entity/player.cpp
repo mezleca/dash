@@ -20,18 +20,18 @@ Player::Player() : GameObject(ObjectType::BOX) {
     update_player_type(PlayerType::BIRD);
 
     rb->on_hit = [&](GameObject* obj) {
-        if (m_finished_level) return;
+        if (m_finished_level || m_dead) return;
 
         if (obj->type == ObjectType::PLATFORM) {
             if (!rb->grounded) {
-                std::cout << "[player] should be dead\n";
+                game.kill_player();
             } else {
                 game.update_camera_focus(obj);
             }
         }
 
         if (obj->type == ObjectType::SPIKE) {
-            std::cout << "[player] should be dead\n";
+            game.kill_player();
         }
     };
 
@@ -62,6 +62,7 @@ void Player::update_player_type(PlayerType type) {
 
 void Player::movement() {
     if (!visible) return;
+    if (m_dead) return;
 
     bool is_pressing_left = IsKeyDown(KEY_A);
     bool is_pressing_right = IsKeyDown(KEY_D) || m_should_lock_in_horizontally;

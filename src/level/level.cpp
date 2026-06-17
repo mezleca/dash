@@ -32,6 +32,8 @@ bool DashLevel::load(std::string_view location) {
 }
 
 bool DashLevel::load_objects() {
+    m_has_been_updated = false;
+
     for (const auto& obj_json : m_temp_objects) {
         auto type = static_cast<ObjectType>(obj_json.at("type").get<int>());
         auto position = obj_json.at("position").get<Vector2>();
@@ -116,6 +118,8 @@ bool DashLevel::save() {
 
     file << j.dump(4);
     file.close();
+
+    m_has_been_updated = false;
 
     return true;
 }

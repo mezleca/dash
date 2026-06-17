@@ -1,16 +1,16 @@
 #pragma once
 
 #include "../modal.hpp"
-#include <raylib.h>
 
 struct UI;
 
-struct MenuModal : public UIModal {
-    explicit MenuModal(UI* ui);
-
-    Texture2D m_logo_texture;
+struct EditorModal : public UIModal {
+  public:
+    explicit EditorModal(UI* ui);
 
     void on_escape() override;
     void on_remove() override;
     void render() override;
+
+  private:
 };

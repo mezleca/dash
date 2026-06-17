@@ -30,6 +30,9 @@ struct DashLevel {
     // game managed shit
     Music music;
 
+    // state
+    bool m_has_been_updated;
+
     bool save();
     bool load(std::string_view location);
     void update();

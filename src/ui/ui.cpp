@@ -1,13 +1,7 @@
 #include "ui.hpp"
-#include "../game/game.hpp"
-#include "../entity/player.hpp"
-#include "modals/death.hpp"
-#include "modals/finish.hpp"
-#include "modals/pause.hpp"
 #include "theme.hpp"
 
 #include <algorithm>
-#include <iterator>
 #include <rlImGui.h>
 
 static constexpr ImGuiWindowFlags BASIC_WINDOW_FLAGS = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
@@ -46,12 +40,9 @@ void UI::initialize() {
     m_fonts[BALOO][FONT_LARGE] = m_io->Fonts->AddFontFromFileTTF("resources/fonts/Baloo-Regular.ttf", 26.0f, &font_cfg);
 
     m_debug_modal = new DebugModal(this);
-    m_death_modal = new DeathModal(this);
-    m_finish_modal = new FinishModal(this);
     m_level_selector_modal = new LevelSelectorModal(this);
     m_menu_modal = new MenuModal(this);
-    m_pause_modal = new PauseModal(this);
-    m_player_modal = new PlayerModal(this);
+    m_playfield_modal = new PlayfieldModal(this);
 
     show_modal(m_menu_modal);
 }
@@ -88,24 +79,8 @@ void UI::show_modal(UIModal* modal, bool wipe) {
     m_modals.push_back(modal);
 }
 
-bool UI::remove_modal(std::string_view id, bool remove_all) {
+bool UI::remove_modal(std::string_view id) {
     bool removed = false;
-
-    if (!remove_all) {
-        for (auto it = m_modals.rbegin(); it != m_modals.rend(); it++) {
-            UIModal* modal = *it;
-
-            if (modal->m_id != id) {
-                continue;
-            }
-
-            modal->on_remove();
-            m_modals.erase(std::next(it).base());
-            return true;
-        }
-
-        return false;
-    }
 
     for (auto it = m_modals.begin(); it != m_modals.end();) {
         UIModal* modal = *it;
@@ -150,18 +125,10 @@ void UI::handle_escape() {
 
     UIModal* modal = focused_modal();
 
-    if (modal != nullptr && modal->m_remove_on_escape) {
-        remove_focused_modal();
+    if (modal != nullptr) {
+        modal->on_escape();
         return;
     }
-
-    if (game.m_current_level == nullptr || !game.m_can_pause || game.m_paused || game.m_player == nullptr ||
-        game.m_player->m_finished_level) {
-        return;
-    }
-
-    game.m_paused = true;
-    show_modal(m_pause_modal);
 }
 
 bool UI::render_level_button(std::string_view text, bool selected) {
@@ -284,7 +251,6 @@ void UI::render() {
         }
     }
     ImGui::End();
-
     ImGui::PopStyleColor(1);
     ImGui::PopStyleVar(3);
 }

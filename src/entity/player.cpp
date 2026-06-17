@@ -42,6 +42,14 @@ Player::~Player() {
     UnloadTexture(texture);
 }
 
+void Player::reset() {
+    velocity = {0, 0};
+    m_rotation = 0.0f;
+    m_dead = false;
+    m_finished_level = false;
+    m_should_flip_player = false;
+}
+
 void Player::update_player_type(PlayerType type) {
     switch (type) {
         case PlayerType::NONE:

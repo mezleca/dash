@@ -5,6 +5,12 @@
 DebugModal::DebugModal(UI* ui) : UIModal(ui, ui_modal_id::DEBUG) {
 }
 
+void DebugModal::on_remove() {
+}
+
+void DebugModal::on_escape() {
+}
+
 void DebugModal::render() {
     ImGuiStyle& style = ImGui::GetStyle();
     ImVec2 debug_ui_pos = {0, 0};
@@ -30,6 +36,16 @@ void DebugModal::render() {
             ImGui::Text("Loaded level: %s", game.m_current_level->m_name.c_str());
             ImGui::Text("Level progress: %f", game.m_current_level->m_current_progress);
         }
+
+        ImGui::Separator();
+
+        UIModal* focused_modal = game.m_ui.focused_modal();
+
+        if (focused_modal != nullptr) {
+            ImGui::Text("Active modal: %s", focused_modal->m_id.c_str());
+        }
+
+        ImGui::Text("Modal count: %zu", game.m_ui.modal_count());
 
         auto size = ImGui::GetWindowSize();
 

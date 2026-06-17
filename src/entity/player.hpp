@@ -20,6 +20,8 @@ struct Player : public GameObject {
 
     void movement();
     void update_player_type(PlayerType type);
+
+    void reset();
     void render() override;
 
     nlohmann::json serialize() const override {

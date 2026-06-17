@@ -9,6 +9,12 @@ MenuModal::MenuModal(UI* ui) : UIModal(ui, ui_modal_id::MENU) {
     m_logo_texture = LoadTexture("resources/ui/logo.png");
 }
 
+void MenuModal::on_remove() {
+}
+
+void MenuModal::on_escape() {
+}
+
 void MenuModal::render() {
     const ImVec2 available = ImGui::GetContentRegionAvail();
 

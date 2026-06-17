@@ -75,8 +75,9 @@ struct Game {
     void render();
 
     // level related stuff
-    void load_level(std::string_view id);
-    void unload_current_level();
+    bool load_level(std::string_view id);
+    bool start_level(bool modify_ui);
+    void unload_current_level(bool modify_ui);
     void restart_current_level();
     void load_all_levels();
     void finish_level();

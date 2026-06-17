@@ -3,7 +3,14 @@
 #include "../../game/game.hpp"
 #include "imgui.h"
 
-LevelSelectorModal::LevelSelectorModal(UI* ui) : UIModal(ui, ui_modal_id::LEVEL_SELECTOR, true) {
+LevelSelectorModal::LevelSelectorModal(UI* ui) : UIModal(ui, ui_modal_id::LEVEL_SELECTOR) {
+}
+
+void LevelSelectorModal::on_remove() {
+}
+
+void LevelSelectorModal::on_escape() {
+    m_ui->remove_focused_modal();
 }
 
 void LevelSelectorModal::render() {
@@ -36,7 +43,9 @@ void LevelSelectorModal::render() {
                 DashLevel* level = level_it.second;
 
                 if (m_ui->render_level_button(level->m_name, false)) {
-                    game.load_level(level->m_file.c_str());
+                    if (game.load_level(level->m_file.c_str())) {
+                        game.start_level(true);
+                    }
                 }
 
                 level_col++;

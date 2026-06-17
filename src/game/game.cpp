@@ -163,10 +163,10 @@ void Game::load_all_levels() {
     }
 }
 
-void Game::load_level(std::string_view location) {
+bool Game::load_level(std::string_view location) {
     if (m_current_level != nullptr) {
         std::cout << "[game] failed to load level while another level is active\n";
-        return;
+        return false;
     }
 
     const std::string level_key(location);
@@ -174,7 +174,7 @@ void Game::load_level(std::string_view location) {
 
     if (level_it == m_levels.end()) {
         std::cout << "[game] failed to find level " << location << "\n";
-        return;
+        return false;
     }
 
     DashLevel* level = level_it->second;
@@ -185,37 +185,54 @@ void Game::load_level(std::string_view location) {
 
         if (!level->load_objects()) {
             std::cout << "[game] failed to load level from " << location << "\n";
-            return;
+            return false;
         }
+    }
+
+    m_current_level = level;
+    std::cout << "loaded " << location << " successfully" << "\n";
+
+    return true;
+}
+
+bool Game::start_level(bool modify_ui) {
+    if (m_current_level == nullptr) {
+        std::cout << "failed to start current level (not loaded)\n";
+        return false;
     }
 
     // create / initialize player if needed
     if (m_player == nullptr) {
         m_player = new Player();
-        m_player->position = level->m_player_start;
+        m_player->position = m_current_level->m_player_start;
         std::cout << "\n player start: (" << m_player->position.x << ", " << m_player->position.y << ")\n";
+    } else {
+        m_player->reset();
+        m_player->position = m_current_level->m_player_start;
     }
 
     // initialize raylib music, etc...
-    std::filesystem::path music_full_location = level->m_file.parent_path() / level->m_music_file;
-    level->music = LoadMusicStream(music_full_location.c_str());
-    SetMusicPan(level->music, 0.0f);
-    SetMusicVolume(level->music, 0.5f);
-    PlayMusicStream(level->music);
+    std::filesystem::path music_full_location = m_current_level->m_file.parent_path() / m_current_level->m_music_file;
+    m_current_level->music = LoadMusicStream(music_full_location.c_str());
+
+    SetMusicPan(m_current_level->music, 0.0f);
+    SetMusicVolume(m_current_level->music, 0.5f);
+    PlayMusicStream(m_current_level->music);
 
     m_paused = false;
     m_was_paused = false;
     m_best_object = nullptr;
-    m_current_level = level;
 
-    m_ui.clear_modals();
-    m_ui.show_modal(m_ui.m_debug_modal);
-    m_ui.show_modal(m_ui.m_player_modal);
+    if (modify_ui) {
+        m_ui.clear_modals();
+        m_ui.show_modal(m_ui.m_debug_modal);
+        m_ui.show_modal(m_ui.m_playfield_modal);
+    }
 
-    std::cout << "loaded " << location << " successfully" << "\n";
+    return true;
 }
 
-void Game::unload_current_level() {
+void Game::unload_current_level(bool modify_ui) {
     if (m_current_level == nullptr) {
         std::cout << "[game] failed to unload current level (not found)\n";
         return;
@@ -228,8 +245,10 @@ void Game::unload_current_level() {
 
     delete m_player;
 
-    m_ui.clear_modals();
-    m_ui.show_modal(m_ui.m_menu_modal);
+    if (modify_ui) {
+        m_ui.clear_modals();
+        m_ui.show_modal(m_ui.m_menu_modal);
+    }
 
     m_paused = false;
     m_was_paused = false;
@@ -244,9 +263,7 @@ void Game::restart_current_level() {
         return;
     }
 
-    const std::string location = m_current_level->m_file.string();
-    unload_current_level();
-    load_level(location);
+    start_level(true);
 }
 
 void Game::finish_level() {
@@ -254,9 +271,7 @@ void Game::finish_level() {
     m_player->m_finished_level = true;
     m_paused = true;
 
-    if (!m_ui.has_modal(ui_modal_id::FINISH)) {
-        m_ui.show_modal(m_ui.m_finish_modal);
-    }
+    m_ui.m_playfield_modal->m_mode = PlayfieldMode::FINISH;
 }
 
 void Game::kill_player() {
@@ -266,15 +281,12 @@ void Game::kill_player() {
 
     std::cout << "[game] player died\n";
 
+    m_paused = true;
+
     m_player->m_dead = true;
     m_player->m_ignore_collision = true;
 
-    m_ui.remove_modal(ui_modal_id::PAUSE, true);
-    m_paused = true;
-
-    if (!m_ui.has_modal(ui_modal_id::DEATH)) {
-        m_ui.show_modal(m_ui.m_death_modal);
-    }
+    m_ui.m_playfield_modal->m_mode = PlayfieldMode::DEATH;
 }
 
 void Game::update_camera_focus(GameObject* obj) {

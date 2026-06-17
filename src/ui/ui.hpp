@@ -1,13 +1,10 @@
 #pragma once
 
 #include "modal.hpp"
-#include "modals/death.hpp"
 #include "modals/debug.hpp"
-#include "modals/finish.hpp"
 #include "modals/level.hpp"
+#include "modals/playfield.hpp"
 #include "modals/menu.hpp"
-#include "modals/pause.hpp"
-#include "modals/player.hpp"
 
 #include <raylib.h>
 #include <vector>
@@ -40,12 +37,10 @@ struct UI {
     ImVec2 m_container_region = {0.0f, 0.0f};
 
     DebugModal* m_debug_modal = nullptr;
-    DeathModal* m_death_modal = nullptr;
-    FinishModal* m_finish_modal = nullptr;
+    PlayfieldModal* m_playfield_modal = nullptr;
+    ;
     LevelSelectorModal* m_level_selector_modal = nullptr;
     MenuModal* m_menu_modal = nullptr;
-    PauseModal* m_pause_modal = nullptr;
-    PlayerModal* m_player_modal = nullptr;
 
     [[nodiscard]]
     bool is_modal_focused(UIModal* modal) const;
@@ -56,8 +51,13 @@ struct UI {
     [[nodiscard]]
     UIModal* focused_modal() const;
 
+    [[nodiscard]]
+    size_t modal_count() {
+        return m_modals.size();
+    }
+
     void show_modal(UIModal* modal, bool wipe = false);
-    bool remove_modal(std::string_view id, bool remove_all = false);
+    bool remove_modal(std::string_view id);
     bool remove_focused_modal();
     void clear_modals();
     void handle_escape();

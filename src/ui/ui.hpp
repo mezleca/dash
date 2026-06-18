@@ -65,6 +65,7 @@ struct UI {
     void render();
 
     bool render_level_button(std::string_view text, std::string_view id, ImVec2 size = {0, 0}, bool selected = false);
+    void render_progress_bar(std::string_view id, float a, float b, ImVec2 pos, ImVec2 size = {128.0f, 16.0f});
     bool render_button(std::string_view text, ImVec2 padding, ImVec2 size = {64.0f, 64.0f});
     bool render_menu_button(std::string_view text, ImVec2 padding, ImVec2 size = {80.0f, 40.0f});
 

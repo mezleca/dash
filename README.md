@@ -7,13 +7,14 @@ projetinho pra testar raylib
 - [x] basic physics system configurable per gameobject
 - [x] level system using json
 - [x] pause / unpause 
+- [ ] fix broken imgui on specific resolutions
 
 ### UI
 - [x] main menu
 - [x] debug ui
 - [x] level selector
 - [ ] settings ui
-- [ ] playfield: level progress bar
+- [x] playfield: level progress bar
 - [x] playfield: pause / death ui
 
 ### GAMEPLAY

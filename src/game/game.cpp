@@ -34,7 +34,7 @@ Game::~Game() {
 }
 
 void Game::initialize() {
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
     InitWindow(m_window.width, m_window.height, m_window.title.c_str());
     InitAudioDevice();
 

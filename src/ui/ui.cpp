@@ -138,9 +138,9 @@ bool UI::render_level_button(std::string_view text, std::string_view id, ImVec2 
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ui_theme::BUTTON_PADDING);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
 
-    ImGui::PushStyleColor(ImGuiCol_Button, ui_theme::LEVEL_BG_COLOR);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ui_theme::LEVEL_BG_COLOR);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ui_theme::LEVEL_BG_COLOR);
+    ImGui::PushStyleColor(ImGuiCol_Button, ui_theme::SECONDARY_BG_COLOR);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ui_theme::SECONDARY_BG_COLOR);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ui_theme::SECONDARY_BG_COLOR);
 
     ImGui::PushFont(m_fonts[BALOO][FONT_LARGE]);
     ImGui::PushID(id.data());
@@ -155,7 +155,7 @@ bool UI::render_level_button(std::string_view text, std::string_view id, ImVec2 
     auto rect_max = ImGui::GetItemRectMax();
 
     dl->AddRect({rect_min.x + 0.5f, rect_min.y + 0.5f}, {rect_max.x + 0.5f, rect_max.y + 0.5f},
-                selected ? ImColor(ui_theme::LEVEL_BORDER_COLOR) : ImColor(ui_theme::LEVEL_BG_COLOR), 4.0f, 0, 2.0f);
+                selected ? ImColor(ui_theme::ACCENT_COLOR) : ImColor(ui_theme::BORDER_COLOR), 4.0f, 0, 2.0f);
 
     ImGui::PopID();
     ImGui::PopFont();
@@ -163,6 +163,27 @@ bool UI::render_level_button(std::string_view text, std::string_view id, ImVec2 
     ImGui::PopStyleColor(3);
 
     return is_selected;
+}
+
+void UI::render_progress_bar(std::string_view id, float a, float b, ImVec2 pos, ImVec2 size) {
+    ImGui::PushID(id.data());
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->Flags |= ImDrawListFlags_AntiAliasedLines;
+    dl->Flags |= ImDrawListFlags_AntiAliasedFill;
+
+    float progress = a * b / 100.0f;
+
+    // draw progress
+    dl->AddRectFilled({pos.x + 0.5f, pos.y + 0.5f},
+                      {pos.x + (progress * size.x / 100.0f) + 0.5f, pos.y + size.y + 0.5f},
+                      ImColor(ui_theme::ACCENT_COLOR), 0.0f, ImDrawFlags_None);
+
+    // draw border
+    dl->AddRect({pos.x + 0.5f, pos.y + 0.5f}, {pos.x + size.x + 0.5f, pos.y + size.y + 0.5f},
+                ImColor(ui_theme::BORDER_COLOR), 0.0f, 0, 1.0f);
+
+    ImGui::PopID();
 }
 
 bool UI::render_button(std::string_view text, ImVec2 padding, ImVec2 size) {

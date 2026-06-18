@@ -1,5 +1,6 @@
 #include "playfield.hpp"
 #include "../../game/game.hpp"
+#include "../helper.hpp"
 #include "../theme.hpp"
 #include "imgui.h"
 
@@ -24,7 +25,23 @@ void PlayfieldModal::on_escape() {
 }
 
 void PlayfieldModal::show_default_screen() {
-    // TODO: progress bar
+    const ImVec2 available = m_ui->m_container_region;
+
+    ImGui::PushStyleColor(ImGuiCol_ChildBg, ui_theme::TRANSPARENT_COLOR);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_ChildBorderSize, 0.0f);
+
+    ImGui::SetCursorPos({0.0f, 0.0f});
+    ImGui::BeginChild("##default-screen", available, ImGuiChildFlags_None, ImGuiWindowFlags_None);
+    {
+        ImVec2 progress_size = {128.0f, 16.0f};
+        ImVec2 progress_pos = {(available.x - progress_size.x) * 0.5f, 10.0f};
+
+        m_ui->render_progress_bar("", game.m_current_level->m_current_progress, 100.0f, progress_pos, progress_size);
+    }
+    ImGui::EndChild();
+    ImGui::PopStyleColor(1);
+    ImGui::PopStyleVar(2);
 }
 
 void PlayfieldModal::show_pause_screen() {
@@ -154,10 +171,9 @@ void PlayfieldModal::show_finish_screen() {
 }
 
 void PlayfieldModal::render() {
+    show_default_screen();
+
     switch (m_mode) {
-        case PlayfieldMode::NONE:
-            show_default_screen();
-            break;
         case PlayfieldMode::PAUSE:
             show_pause_screen();
             break;
@@ -166,6 +182,8 @@ void PlayfieldModal::render() {
             break;
         case PlayfieldMode::FINISH:
             show_finish_screen();
+            break;
+        default:
             break;
     }
 }

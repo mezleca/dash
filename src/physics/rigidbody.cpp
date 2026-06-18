@@ -27,7 +27,7 @@ void RigidBody::simulate() {
 
     for (const auto& object : game.m_objects) {
         if (object == this->obj) continue;
-        if (!object->visible) continue;
+        if (!object->visible || object->type == ObjectType::STATIC_TEXTURE) continue;
         if (!aabb(*obj, *object)) continue;
 
         if (!object->rb->is_trigger) {
@@ -55,7 +55,7 @@ void RigidBody::simulate() {
 
     for (const auto& object : game.m_objects) {
         if (object == this->obj) continue;
-        if (!object->visible) continue;
+        if (!object->visible || object->type == ObjectType::STATIC_TEXTURE) continue;
         if (!aabb(*obj, *object)) continue;
 
         if (!object->rb->is_trigger) {

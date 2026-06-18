@@ -3,6 +3,7 @@
 #include "../entity/player.hpp"
 #include "../entity/world/platform.hpp"
 #include "../entity/world/spike.hpp"
+#include "../entity/world/static.hpp"
 #include "../entity/world/finish.hpp"
 
 #include <fstream>
@@ -35,11 +36,17 @@ bool DashLevel::load_objects() {
     m_has_been_updated = false;
 
     for (const auto& obj_json : m_temp_objects) {
-        auto type = static_cast<ObjectType>(obj_json.at("type").get<int>());
-        auto position = obj_json.at("position").get<Vector2>();
-        auto dimensions = obj_json.at("dimensions").get<Vector2>();
-        auto visible = obj_json.at("visible").get<bool>();
-        auto texture_location = obj_json.at("texture").get<std::string>();
+        auto type = static_cast<ObjectType>(json_helper::get_int(obj_json, "type"));
+        auto position = json_helper::get_vec2(obj_json, "position");
+        auto dimensions = json_helper::get_vec2(obj_json, "dimensions");
+        auto visible = json_helper::get_bool(obj_json, "visible");
+        auto texture_location = json_helper::get_string(obj_json, "texture");
+
+        // std::cout << "type: " << static_cast<int>(type) << "\n";
+        // std::cout << "position: (" << position.x << ", " << position.y << ")\n";
+        // std::cout << "dimensions: (" << dimensions.x << ", " << dimensions.y << ")\n";
+        // std::cout << "visible: " << visible << "\n";
+        // std::cout << "texture_location: " << texture_location << "\n";
 
         GameObject* obj = nullptr;
 
@@ -58,11 +65,19 @@ bool DashLevel::load_objects() {
                 obj = new Spike(spike_ammount);
                 break;
             }
+            case ObjectType::STATIC_TEXTURE: {
+                auto fill_viewport = obj_json.at("fill_viewport").get<bool>();
+                obj = new StaticTexture(texture_location, fill_viewport);
+                break;
+            }
             default:
                 break;
         }
 
-        if (obj == nullptr) continue;
+        if (obj == nullptr) {
+            std::cout << "[level] unable to find object type: " << static_cast<int>(type) << "\n";
+            continue;
+        }
 
         obj->visible = visible;
         obj->position = position;
@@ -74,8 +89,10 @@ bool DashLevel::load_objects() {
             obj->load_texture(full_location.c_str());
         }
 
-        // skip spike because yes
-        if (type != ObjectType::SPIKE) {
+        // skip spike and empty vectors
+        if (type != ObjectType::SPIKE && dimensions.x != 0 && dimensions.y != 0) {
+            // std::cout << "updating object (" << static_cast<int>(type) << ") dimension (" << dimensions.x << ", " <<
+            // dimensions.y << ")\n";
             obj->dimensions = dimensions;
         }
 

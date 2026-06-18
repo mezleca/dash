@@ -210,7 +210,6 @@ bool Game::start_level(bool modify_ui) {
     if (m_player == nullptr) {
         m_player = new Player();
         m_player->position = m_current_level->m_player_start;
-        std::cout << "\n player start: (" << m_player->position.x << ", " << m_player->position.y << ")\n";
     } else {
         m_player->reset();
         m_player->position = m_current_level->m_player_start;

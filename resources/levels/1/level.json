@@ -4,6 +4,14 @@
     "player_start": { "x": 32, "y": 0 },
     "objects": [
         {
+            "type": 4,
+            "visible": true,
+            "fill_viewport": true,
+            "texture": "1.png",
+            "position": { "x": 0.0, "y": -128 },
+            "dimensions": { "x": 128, "y": 128 }
+        },
+        {
             "type": 1,
             "visible": true,
             "texture": "",

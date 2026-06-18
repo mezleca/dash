@@ -1,6 +1,5 @@
 #include "playfield.hpp"
 #include "../../game/game.hpp"
-#include "../helper.hpp"
 #include "../theme.hpp"
 #include "imgui.h"
 

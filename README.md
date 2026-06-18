@@ -23,7 +23,7 @@ projetinho pra testar raylib
 - [x] object: platform
 - [ ] object: trigger
 - [ ] object: end (WIP)
-- [ ] object: static texture
+- [x] object: static texture
 - [x] player: cube mode
 - [x] player: bird mode (aka ship)
 - [ ] player: wave mode

@@ -3,8 +3,11 @@
 #include "../../utils/math.hpp"
 #include "../../game/game.hpp"
 #include "raylib.h"
-#include <cmath>
-#include <iostream>
+
+int64_t get_time_ms() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
 
 LevelSelectorModal::LevelSelectorModal(UI* ui) : UIModal(ui, ui_modal_id::LEVEL_SELECTOR) {
 }
@@ -25,6 +28,7 @@ void LevelSelectorModal::render() {
     static float holding_start_x = 0.0f;
     static float target_pos_x = 0.0f;
     static float current_pos_x = 0.0f;
+    static int64_t last_snap_ms = 0.0f;
     static bool mouse_held = false;
     static bool is_dragging = false;
 
@@ -56,6 +60,8 @@ void LevelSelectorModal::render() {
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ui_theme::BG_COLOR);
     ImGui::BeginChild("##level-carousel", available, ImGuiChildFlags_None, ImGuiWindowFlags_None);
     {
+        int64_t cur_time_ms = get_time_ms();
+
         const ImVec2 button_size = {available.x * 50.0f / 100.0f, available.y * 50.0f / 100.0f};
         const float start_x = (available.x - button_size.x) * 0.5f;
         const float start_y = (available.y - button_size.y) * 0.5f;
@@ -90,6 +96,7 @@ void LevelSelectorModal::render() {
                 holding_offset_x = 0.0f;
                 holding_start_x = 0.0f;
 
+                last_snap_ms = cur_time_ms;
                 snapped = true;
             }
 
@@ -105,6 +112,11 @@ void LevelSelectorModal::render() {
 
             // only handle as click if the mouse didn't drag
             if (clicked && !is_dragging && !snapped) {
+                // ignore input if we just finished snapping
+                if (last_snap_ms && cur_time_ms - last_snap_ms < 100.0f) {
+                    continue;
+                }
+
                 if (focused_item != static_cast<int>(i)) {
                     focused_item = static_cast<int>(i);
                     target_pos_x = item_base_x;

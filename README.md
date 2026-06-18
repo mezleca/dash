@@ -4,35 +4,35 @@ projetinho pra testar raylib
 
 ## TODO
 ### CORE
-- [x] fisica basica configuravel por objeto
-- [x] sistema de level com serializacao via json
+- [x] basic physics system configurable per gameobject
+- [x] level system using json
 - [x] pause / unpause 
 
 ### UI
 - [x] main menu
 - [x] debug ui
-- [ ] level selector (WIP)
+- [x] level selector
 - [ ] settings ui
 - [ ] playfield: level progress bar
 - [x] playfield: pause / death ui
 
 ### GAMEPLAY
-- [ ] SAT (Separating Axis Theorem) para detectao de colisoes em vez de aabb simples
+- [ ] rb: SAT (Separating Axis Theorem) instead of basic aabb
 - [x] object: spike
 - [x] object: platform
 - [ ] object: trigger
 - [ ] object: end (WIP)
-- [ ] object: static texture (pra bg e os krl a 4)
-- [x] cube mode
-- [x] bird mode (aka ship)
-- [ ] wave mode
-- [ ] spider mode
+- [ ] object: static texture
+- [x] player: cube mode
+- [x] player: bird mode (aka ship)
+- [ ] player: wave mode
+- [ ] player: spider mode
 - [ ] behavior: invert screen
 - [ ] behavior: flip screen
 - [ ] behavior: camera control (offset, zoom)
 
-### editor
-  - [ ] adicionar/remover gameobject
-  - [ ] mover gameobjects via gizmo
-  - [ ] gameobject: object depth
-  - [ ] alterar metadata do level
+### EDITOR
+  - [ ] add/remove gameobjects
+  - [ ] move gameobjects using 2d gizmo
+  - [ ] ui to change gameobject depth
+  - [ ] ui to change level metadata

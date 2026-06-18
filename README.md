@@ -6,7 +6,8 @@ projetinho pra testar raylib
 ### CORE
 - [x] basic physics system configurable per gameobject
 - [x] level system using json
-- [x] pause / unpause 
+- [x] pause / unpause
+- [ ] gameobject: depth
 - [ ] fix broken imgui on specific resolutions
 
 ### UI
@@ -35,5 +36,5 @@ projetinho pra testar raylib
 ### EDITOR
   - [ ] add/remove gameobjects
   - [ ] move gameobjects using 2d gizmo
-  - [ ] ui to change gameobject depth
+  - [ ] ui to change gameobject properties
   - [ ] ui to change level metadata

@@ -61,12 +61,12 @@ bool DashLevel::load_objects() {
                 break;
             }
             case ObjectType::SPIKE: {
-                auto spike_ammount = obj_json.at("spike_ammount").get<int>();
+                auto spike_ammount = json_helper::get_int(obj_json, "spike_ammount");
                 obj = new Spike(spike_ammount);
                 break;
             }
             case ObjectType::STATIC_TEXTURE: {
-                auto fill_viewport = obj_json.at("fill_viewport").get<bool>();
+                auto fill_viewport = json_helper::get_bool(obj_json, "fill_viewport");
                 obj = new StaticTexture(texture_location, fill_viewport);
                 break;
             }

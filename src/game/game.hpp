@@ -5,7 +5,6 @@
 #include "object.hpp"
 
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <filesystem>
 #include <vector>
@@ -39,10 +38,10 @@ struct Game {
     UI m_ui;
     Camera2D m_camera;
 
+    // objects / level
     DashLevel* m_current_level = nullptr;
-
     std::vector<GameObject*> m_objects;
-    std::unordered_map<std::string, DashLevel*> m_levels;
+    std::vector<DashLevel*> m_levels;
 
     // window
     float m_fixed_frametime = DEFAULT_FIXED_FRAMETIME;

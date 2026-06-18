@@ -2,7 +2,6 @@
 #include "../utils/math.hpp"
 #include "../game/game.hpp"
 #include "../physics/rigidbody.hpp"
-#include <iostream>
 
 constexpr float JUMP_FORCE = 1495.5f;
 constexpr float HORIZONTAL_ACCELERATION = 45000.0f / 4.0f;

@@ -1,4 +1,5 @@
 #include "ui.hpp"
+#include "imgui.h"
 #include "theme.hpp"
 
 #include <algorithm>
@@ -131,19 +132,20 @@ void UI::handle_escape() {
     }
 }
 
-bool UI::render_level_button(std::string_view text, bool selected) {
+bool UI::render_level_button(std::string_view text, std::string_view id, ImVec2 size, bool selected) {
     bool is_selected = false;
 
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ui_theme::LEVEL_BUTTON_PADDING);
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, ui_theme::LEVEL_BUTTON_BORDER_SIZE);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ui_theme::BUTTON_PADDING);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
 
-    ImGui::PushStyleColor(ImGuiCol_Button, ui_theme::TRANSPARENT_COLOR);
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ui_theme::TRANSPARENT_COLOR);
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ui_theme::TRANSPARENT_COLOR);
+    ImGui::PushStyleColor(ImGuiCol_Button, ui_theme::LEVEL_BG_COLOR);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ui_theme::LEVEL_BG_COLOR);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ui_theme::LEVEL_BG_COLOR);
 
     ImGui::PushFont(m_fonts[BALOO][FONT_LARGE]);
+    ImGui::PushID(id.data());
 
-    is_selected = ImGui::Button(text.data(), ui_theme::LEVEL_BUTTON_SIZE);
+    is_selected = ImGui::Button(text.data(), size);
 
     ImDrawList* dl = ImGui::GetWindowDrawList();
     dl->Flags |= ImDrawListFlags_AntiAliasedLines;
@@ -153,9 +155,9 @@ bool UI::render_level_button(std::string_view text, bool selected) {
     auto rect_max = ImGui::GetItemRectMax();
 
     dl->AddRect({rect_min.x + 0.5f, rect_min.y + 0.5f}, {rect_max.x + 0.5f, rect_max.y + 0.5f},
-                selected || ImGui::IsItemHovered() ? IM_COL32(0, 40, 200, 255) : IM_COL32(90, 90, 90, 200), 4.0f, 0,
-                2.0f);
+                selected ? ImColor(ui_theme::LEVEL_BORDER_COLOR) : ImColor(ui_theme::LEVEL_BG_COLOR), 4.0f, 0, 2.0f);
 
+    ImGui::PopID();
     ImGui::PopFont();
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor(3);

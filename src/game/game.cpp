@@ -158,8 +158,13 @@ void Game::load_all_levels() {
             DashLevel* level = new DashLevel();
             level->load(location);
 
-            m_levels.insert({location, level});
+            m_levels.push_back(level);
+            break;
         }
+    }
+
+    for (const auto& level : m_levels) {
+        std::cout << "[game] loaded level: " << level->m_name << "\n";
     }
 }
 
@@ -170,14 +175,14 @@ bool Game::load_level(std::string_view location) {
     }
 
     const std::string level_key(location);
-    auto level_it = m_levels.find(level_key);
+    auto level_it = std::ranges::find(m_levels, level_key.c_str(), &DashLevel::m_file);
 
     if (level_it == m_levels.end()) {
         std::cout << "[game] failed to find level " << location << "\n";
         return false;
     }
 
-    DashLevel* level = level_it->second;
+    DashLevel* level = *level_it.base();
 
     // load level data if needed
     if (level->m_objects.size() == 0 && !level->m_temp_objects.empty()) {

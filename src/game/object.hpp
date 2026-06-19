@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <string>
 
 #include "../utils/json.hpp"
@@ -13,11 +14,11 @@ struct GameObject {
     explicit GameObject(ObjectType type);
     virtual ~GameObject();
 
-    Texture2D texture;
+    Texture2D texture = {};
     std::string texture_location;
 
     Vector2 velocity;
-    RigidBody* rb;
+    std::unique_ptr<RigidBody> rb;
     Vector2 previous_position;
     Vector2 position;
     Vector2 dimensions;

@@ -7,8 +7,9 @@ struct UI;
 
 struct MenuModal : public UIModal {
     explicit MenuModal(UI* ui);
+    ~MenuModal() override;
 
-    Texture2D m_logo_texture;
+    Texture2D m_logo_texture = {};
 
     void on_escape() override;
     void on_remove() override;

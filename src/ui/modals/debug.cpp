@@ -12,9 +12,6 @@ void DebugModal::on_escape() {
 }
 
 void DebugModal::render() {
-    ImGuiStyle& style = ImGui::GetStyle();
-    ImVec2 debug_ui_pos = {0, 0};
-
     ImGui::PushStyleColor(ImGuiCol_ChildBg, {10.0f / 255.0f, 10.0f / 255.0f, 10.0f / 255.0f, 0.0f});
 
     ImGui::BeginChild("##debug_info", {0, 0}, ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_AutoResizeY,
@@ -46,12 +43,6 @@ void DebugModal::render() {
         }
 
         ImGui::Text("Modal count: %zu", game.m_ui.modal_count());
-
-        auto size = ImGui::GetWindowSize();
-
-        if (debug_ui_pos.x < size.x) {
-            debug_ui_pos = size;
-        }
 
         ImGui::PopFont();
     }

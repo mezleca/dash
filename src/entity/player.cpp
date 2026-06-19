@@ -38,7 +38,6 @@ Player::Player() : GameObject(ObjectType::BOX) {
 }
 
 Player::~Player() {
-    UnloadTexture(texture);
 }
 
 void Player::reset() {
@@ -49,8 +48,8 @@ void Player::reset() {
     m_should_flip_player = false;
 }
 
-void Player::update_player_type(PlayerType type) {
-    switch (type) {
+void Player::update_player_type(PlayerType player_type) {
+    switch (player_type) {
         case PlayerType::NONE:
         case PlayerType::BOX: {
             load_texture("resources/sprites/default.png");
@@ -64,7 +63,7 @@ void Player::update_player_type(PlayerType type) {
         }
     }
 
-    m_player_type = type;
+    m_player_type = player_type;
 }
 
 void Player::movement() {

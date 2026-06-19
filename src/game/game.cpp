@@ -1,13 +1,11 @@
 #include "game.hpp"
-#include "../entity/player.hpp"
 #include "../physics/rigidbody.hpp"
 #include "../utils/math.hpp"
-#include "object.hpp"
 
 #include <cmath>
 #include <filesystem>
 #include <iostream>
-#include <nlohmann/json.hpp>
+#include <memory>
 #include <rlImGui.h>
 #include <raylib.h>
 #include <string_view>
@@ -25,7 +23,7 @@ Game::Game() {
     m_window.width = 1280;
     m_window.height = 720;
 
-    m_camera = {0};
+    m_camera = {};
     m_camera.rotation = 0.0f;
     m_camera.zoom = 1.2f;
 }
@@ -70,7 +68,9 @@ void Game::initialize() {
         EndDrawing();
     }
 
+    shutdown();
     rlImGuiShutdown();
+    CloseAudioDevice();
     CloseWindow();
 }
 
@@ -108,7 +108,7 @@ void Game::handle_pause_state() {
 }
 
 void Game::pause_current_level_music() {
-    if (m_current_level == nullptr) {
+    if (m_current_level == nullptr || !m_current_level->m_music_loaded) {
         return;
     }
 
@@ -117,7 +117,7 @@ void Game::pause_current_level_music() {
 }
 
 void Game::resume_current_level_music() {
-    if (m_current_level == nullptr) {
+    if (m_current_level == nullptr || !m_current_level->m_music_loaded) {
         return;
     }
 
@@ -126,8 +126,20 @@ void Game::resume_current_level_music() {
     ResumeMusicStream(m_current_level->music);
 }
 
+void Game::unload_current_level_music() {
+    if (m_current_level == nullptr || !m_current_level->m_music_loaded) {
+        return;
+    }
+
+    StopMusicStream(m_current_level->music);
+    UnloadMusicStream(m_current_level->music);
+
+    m_current_level->music = {};
+    m_current_level->m_music_loaded = false;
+}
+
 void Game::update_current_level_progress() {
-    if (m_paused || m_current_level == nullptr) {
+    if (m_paused || m_current_level == nullptr || !m_current_level->m_music_loaded) {
         return;
     }
 
@@ -155,10 +167,13 @@ void Game::load_all_levels() {
             std::cout << "[game] found level at " << location << "\n";
 
             // create new level and load basic metadata
-            DashLevel* level = new DashLevel();
-            level->load(location);
+            auto level = std::make_unique<DashLevel>();
+            if (!level->load(location)) {
+                std::cout << "[game] failed to load level metadata from " << location << "\n";
+                continue;
+            }
 
-            m_levels.push_back(level);
+            m_levels.push_back(std::move(level));
             break;
         }
     }
@@ -175,14 +190,15 @@ bool Game::load_level(std::string_view location) {
     }
 
     const std::string level_key(location);
-    auto level_it = std::ranges::find(m_levels, level_key.c_str(), &DashLevel::m_file);
+    auto level_it =
+        std::ranges::find_if(m_levels, [&level_key](const auto& level) { return level->m_file == level_key; });
 
     if (level_it == m_levels.end()) {
         std::cout << "[game] failed to find level " << location << "\n";
         return false;
     }
 
-    DashLevel* level = *level_it.base();
+    DashLevel* level = level_it->get();
 
     // load level data if needed
     if (level->m_objects.size() == 0 && !level->m_temp_objects.empty()) {
@@ -208,7 +224,7 @@ bool Game::start_level(bool modify_ui) {
 
     // create / initialize player if needed
     if (m_player == nullptr) {
-        m_player = new Player();
+        m_player = std::make_unique<Player>();
         m_player->position = m_current_level->m_player_start;
     } else {
         m_player->reset();
@@ -217,7 +233,15 @@ bool Game::start_level(bool modify_ui) {
 
     // initialize raylib music, etc...
     std::filesystem::path music_full_location = m_current_level->m_file.parent_path() / m_current_level->m_music_file;
+    unload_current_level_music();
+
     m_current_level->music = LoadMusicStream(music_full_location.c_str());
+    m_current_level->m_music_loaded = IsMusicValid(m_current_level->music);
+
+    if (!m_current_level->m_music_loaded) {
+        std::cout << "[game] failed to load music from " << music_full_location << "\n";
+        return false;
+    }
 
     SetMusicPan(m_current_level->music, 0.0f);
     SetMusicVolume(m_current_level->music, 0.5f);
@@ -225,12 +249,11 @@ bool Game::start_level(bool modify_ui) {
 
     m_paused = false;
     m_was_paused = false;
-    m_best_object = nullptr;
 
     if (modify_ui) {
         m_ui.clear_modals();
-        m_ui.show_modal(m_ui.m_debug_modal);
-        m_ui.show_modal(m_ui.m_playfield_modal);
+        m_ui.show_modal(m_ui.m_debug_modal.get());
+        m_ui.show_modal(m_ui.m_playfield_modal.get());
     }
 
     return true;
@@ -242,22 +265,18 @@ void Game::unload_current_level(bool modify_ui) {
         return;
     }
 
-    StopMusicStream(m_current_level->music);
-    UnloadMusicStream(m_current_level->music);
-
+    unload_current_level_music();
     m_current_level->unload();
 
-    delete m_player;
+    m_player.reset();
 
     if (modify_ui) {
         m_ui.clear_modals();
-        m_ui.show_modal(m_ui.m_menu_modal);
+        m_ui.show_modal(m_ui.m_menu_modal.get());
     }
 
     m_paused = false;
     m_was_paused = false;
-    m_player = nullptr;
-    m_best_object = nullptr;
     m_current_level = nullptr;
 }
 
@@ -266,6 +285,11 @@ void Game::restart_current_level() {
         std::cout << "[game] failed to restart current level (not found)\n";
         return;
     }
+
+    unload_current_level_music();
+
+    m_current_level->m_current_progress = 0.0f;
+    m_current_level->m_current_music_progress = 0.0f;
 
     start_level(true);
 }
@@ -294,10 +318,6 @@ void Game::kill_player() {
 }
 
 void Game::update_camera_focus(GameObject* obj) {
-    if (m_best_object != obj) {
-        m_best_object = obj;
-    }
-
     m_focus_y = obj->position.y + obj->dimensions.y / 2.0f;
 }
 
@@ -307,7 +327,7 @@ void Game::simulate() {
     m_player->movement();
     m_player->rb->simulate();
 
-    static GameObject* closest_platform = nullptr;
+    GameObject* closest_platform = nullptr;
 
     if (!m_player->m_finished_level) {
         const float player_center_x = m_player->position.x + m_player->dimensions.x / 2.0f;
@@ -338,13 +358,13 @@ void Game::simulate() {
         if (closest_platform != nullptr) {
             update_camera_focus(closest_platform);
         } else {
-            update_camera_focus(m_player);
+            update_camera_focus(m_player.get());
         }
     }
 
     m_camera.target = {m_player->position.x + CAMERA_X_LOOK_AHEAD,
                        d_math::lerp(m_camera.target.y, m_focus_y + CAMERA_Y_LOOK_AHEAD, CAMERA_Y_SMOOTHING)};
-    m_camera.offset = {m_window.width / 2.0f, m_window.height / 2.0f};
+    m_camera.offset = {static_cast<float>(m_window.width) / 2.0f, static_cast<float>(m_window.height) / 2.0f};
 }
 
 void Game::render() {
@@ -363,4 +383,13 @@ void Game::render() {
         m_ui.render();
     }
     rlImGuiEnd();
+}
+
+void Game::shutdown() {
+    if (m_current_level != nullptr) {
+        unload_current_level(false);
+    }
+
+    m_levels.clear();
+    m_ui.shutdown();
 }

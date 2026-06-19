@@ -19,7 +19,7 @@ struct Player : public GameObject {
     PlayerType m_player_type;
 
     void movement();
-    void update_player_type(PlayerType type);
+    void update_player_type(PlayerType player_type);
 
     void reset();
     void render() override;

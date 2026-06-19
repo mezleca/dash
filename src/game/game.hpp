@@ -1,12 +1,15 @@
 #pragma once
 
+#include "../entity/player.hpp"
 #include "../ui/ui.hpp"
 #include "../level/level.hpp"
 #include "object.hpp"
 
-#include <string>
-#include <utility>
+#include <algorithm>
 #include <filesystem>
+#include <iterator>
+#include <memory>
+#include <string>
 #include <vector>
 
 const std::filesystem::path RESOURCES_LOCATION = std::filesystem::path(GetApplicationDirectory()) / "resources";
@@ -17,15 +20,14 @@ constexpr float DEFAULT_FIXED_FRAMETIME = 1.0f / 60.0f;
 constexpr Vector2 SPRITE_SIZE_HIGH = {128, 128};
 constexpr Vector2 SPRITE_SIZE_MEDIUM = {64, 64};
 
-struct Player;
 struct Spike;
 struct DashLevel;
 struct Platform;
 
 struct GameWindow {
     std::string title;
-    float width;
-    float height;
+    int width;
+    int height;
 };
 
 struct Game {
@@ -34,14 +36,14 @@ struct Game {
     ~Game();
 
     GameWindow m_window;
-    Player* m_player = nullptr;
+    std::unique_ptr<Player> m_player = nullptr;
     UI m_ui;
     Camera2D m_camera;
 
     // objects / level
     DashLevel* m_current_level = nullptr;
     std::vector<GameObject*> m_objects;
-    std::vector<DashLevel*> m_levels;
+    std::vector<std::unique_ptr<DashLevel>> m_levels;
 
     // window
     float m_fixed_frametime = DEFAULT_FIXED_FRAMETIME;
@@ -50,18 +52,25 @@ struct Game {
 
     // pause
     bool m_paused = false;
-    bool m_can_pause = true;
-
     // camera focus
-    GameObject* m_best_object = nullptr;
     float m_focus_y = 0.0f;
 
     void add_game_object(GameObject* obj) {
-        obj->id = m_objects.size();
+        obj->id = static_cast<uint32_t>(m_objects.size());
         m_objects.push_back(obj);
     }
 
     void remove_game_object(GameObject* obj) {
+        if (obj->id >= m_objects.size() || m_objects[obj->id] != obj) {
+            auto object_it = std::ranges::find(m_objects, obj);
+
+            if (object_it == m_objects.end()) {
+                return;
+            }
+
+            obj->id = static_cast<uint32_t>(std::distance(m_objects.begin(), object_it));
+        }
+
         std::swap(m_objects[obj->id], m_objects.back());
         m_objects[obj->id]->id = obj->id;
         m_objects.pop_back();
@@ -92,5 +101,7 @@ struct Game {
     void handle_pause_state();
     void pause_current_level_music();
     void resume_current_level_music();
+    void unload_current_level_music();
     void update_current_level_progress();
+    void shutdown();
 } inline game;

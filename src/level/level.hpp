@@ -5,13 +5,15 @@
 #include <string>
 #include <string_view>
 #include <nlohmann/json.hpp>
+#include <memory>
 #include <vector>
 
 struct DashLevel {
     explicit DashLevel() {
     }
+    ~DashLevel();
 
-    std::vector<GameObject*> m_objects;
+    std::vector<std::unique_ptr<GameObject>> m_objects;
 
     // metadata
     nlohmann::json m_temp_objects; // will be parsed / initialized on level load
@@ -28,10 +30,8 @@ struct DashLevel {
     float m_current_music_progress = 0.0f;
 
     // game managed shit
-    Music music;
-
-    // state
-    bool m_has_been_updated;
+    Music music = {};
+    bool m_music_loaded = false;
 
     bool save();
     bool load(std::string_view location);

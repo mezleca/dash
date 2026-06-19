@@ -4,6 +4,11 @@
 #include "../../game/game.hpp"
 #include "raylib.h"
 
+#include <algorithm>
+#include <cmath>
+#include <chrono>
+#include <cstdint>
+
 int64_t get_time_ms() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch())
         .count();
@@ -23,15 +28,6 @@ void LevelSelectorModal::render() {
     const ImVec2 available = ImGui::GetContentRegionAvail();
     const int levels_count = static_cast<int>(game.m_levels.size());
 
-    static int focused_item = 0;
-    static float holding_offset_x = 0.0f;
-    static float holding_start_x = 0.0f;
-    static float target_pos_x = 0.0f;
-    static float current_pos_x = 0.0f;
-    static int64_t last_snap_ms = 0.0f;
-    static bool mouse_held = false;
-    static bool is_dragging = false;
-
     static constexpr float DRAG_THRESHOLD = 8.0f;
 
     const bool mouse_down = IsMouseButtonDown(MOUSE_LEFT_BUTTON);
@@ -39,22 +35,22 @@ void LevelSelectorModal::render() {
     const bool mouse_released = IsMouseButtonReleased(MOUSE_LEFT_BUTTON);
 
     if (mouse_pressed) {
-        holding_start_x = GetMousePosition().x;
-        holding_offset_x = 0.0f;
-        mouse_held = true;
-        is_dragging = false;
+        m_holding_start_x = GetMousePosition().x;
+        m_holding_offset_x = 0.0f;
+        m_mouse_held = true;
+        m_is_dragging = false;
     }
 
-    if (mouse_held && mouse_down) {
-        holding_offset_x = GetMousePosition().x - holding_start_x;
-        if (std::fabs(holding_offset_x) >= DRAG_THRESHOLD) {
-            is_dragging = true;
+    if (m_mouse_held && mouse_down) {
+        m_holding_offset_x = GetMousePosition().x - m_holding_start_x;
+        if (std::fabs(m_holding_offset_x) >= DRAG_THRESHOLD) {
+            m_is_dragging = true;
         }
     }
 
     if (mouse_released) {
-        mouse_held = false;
-        is_dragging = false;
+        m_mouse_held = false;
+        m_is_dragging = false;
     }
 
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ui_theme::BG_COLOR);
@@ -67,40 +63,40 @@ void LevelSelectorModal::render() {
         const float start_y = (available.y - button_size.y) * 0.5f;
         const float item_stride = button_size.x + 20.0f;
 
-        if (target_pos_x != current_pos_x) {
-            current_pos_x = d_math::lerp(current_pos_x, target_pos_x, 0.12f);
+        if (m_target_pos_x != m_current_pos_x) {
+            m_current_pos_x = d_math::lerp(m_current_pos_x, m_target_pos_x, 0.12f);
         }
 
         for (size_t i = 0; i < game.m_levels.size(); i++) {
-            DashLevel* level = game.m_levels.at(i);
+            DashLevel* level = game.m_levels.at(i).get();
 
-            float item_base_x = item_stride * (i + 1);
+            float item_base_x = item_stride * static_cast<float>(i + 1);
 
-            if (target_pos_x == 0.0f || i == focused_item) {
-                target_pos_x = item_base_x - holding_offset_x;
-                if (i != focused_item) {
-                    current_pos_x = item_base_x - holding_offset_x;
+            if (m_target_pos_x == 0.0f || static_cast<int>(i) == m_focused_item) {
+                m_target_pos_x = item_base_x - m_holding_offset_x;
+                if (static_cast<int>(i) != m_focused_item) {
+                    m_current_pos_x = item_base_x - m_holding_offset_x;
                 }
             }
 
             bool snapped = false;
 
             // snap to next or previous item on drag release
-            if (mouse_released && std::fabs(holding_offset_x) >= item_stride / 4.0f) {
-                int direction = holding_offset_x < 0.0f ? 1 : -1;
+            if (mouse_released && std::fabs(m_holding_offset_x) >= item_stride / 4.0f) {
+                int direction = m_holding_offset_x < 0.0f ? 1 : -1;
 
-                focused_item = std::clamp(focused_item + direction, 0, levels_count - 1);
-                target_pos_x = (item_stride * (focused_item + 1)) - holding_offset_x;
+                m_focused_item = std::clamp(m_focused_item + direction, 0, levels_count - 1);
+                m_target_pos_x = (item_stride * static_cast<float>(m_focused_item + 1)) - m_holding_offset_x;
 
                 // reset draw offset
-                holding_offset_x = 0.0f;
-                holding_start_x = 0.0f;
+                m_holding_offset_x = 0.0f;
+                m_holding_start_x = 0.0f;
 
-                last_snap_ms = cur_time_ms;
+                m_last_snap_ms = cur_time_ms;
                 snapped = true;
             }
 
-            float screen_x = start_x + item_base_x - current_pos_x;
+            float screen_x = start_x + item_base_x - m_current_pos_x;
 
             ImGui::SetCursorPosX(screen_x);
             ImGui::SetCursorPosY(start_y);
@@ -108,18 +104,18 @@ void LevelSelectorModal::render() {
             std::string button_id = level->m_name + std::to_string(i);
 
             bool clicked = m_ui->render_level_button(level->m_name.c_str(), button_id, button_size,
-                                                     focused_item == static_cast<int>(i));
+                                                     m_focused_item == static_cast<int>(i));
 
             // only handle as click if the mouse didn't drag
-            if (clicked && !is_dragging && !snapped) {
+            if (clicked && !m_is_dragging && !snapped) {
                 // ignore input if we just finished snapping
-                if (last_snap_ms && cur_time_ms - last_snap_ms < 100.0f) {
+                if (m_last_snap_ms != 0 && cur_time_ms - m_last_snap_ms < 100) {
                     continue;
                 }
 
-                if (focused_item != static_cast<int>(i)) {
-                    focused_item = static_cast<int>(i);
-                    target_pos_x = item_base_x;
+                if (m_focused_item != static_cast<int>(i)) {
+                    m_focused_item = static_cast<int>(i);
+                    m_target_pos_x = item_base_x;
                 } else {
                     if (game.load_level(level->m_file.c_str())) {
                         game.start_level(true);

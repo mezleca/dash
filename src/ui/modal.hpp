@@ -16,6 +16,7 @@ namespace ui_modal_id {
 struct UIModal {
     explicit UIModal(UI* ui, std::string_view id) : m_ui(ui), m_id(id) {
     }
+    virtual ~UIModal() = default;
 
     UI* m_ui;
     std::string m_id;

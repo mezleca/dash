@@ -3,9 +3,9 @@
 #include "../../game/object.hpp"
 
 struct Spike : public GameObject {
-    explicit Spike(float ammount);
+    explicit Spike(int ammount);
 
-    float m_ammount = 0;
+    int m_ammount = 0;
 
     void render() override;
 

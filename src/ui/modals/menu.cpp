@@ -9,6 +9,12 @@ MenuModal::MenuModal(UI* ui) : UIModal(ui, ui_modal_id::MENU) {
     m_logo_texture = LoadTexture("resources/ui/logo.png");
 }
 
+MenuModal::~MenuModal() {
+    if (m_logo_texture.id) {
+        UnloadTexture(m_logo_texture);
+    }
+}
+
 void MenuModal::on_remove() {
 }
 
@@ -26,9 +32,10 @@ void MenuModal::render() {
             float padding_v = available.y * 25.0f / 100.0f;
             ImGui::SetCursorPosY(padding_v);
 
-            ui_helper::center_next_item_x((float)m_logo_texture.width);
+            ui_helper::center_next_item_x(static_cast<float>(m_logo_texture.width));
 
-            ImGui::Image((ImTextureID)m_logo_texture.id, {(float)m_logo_texture.width, (float)m_logo_texture.height});
+            ImGui::Image(static_cast<ImTextureID>(m_logo_texture.id),
+                         {static_cast<float>(m_logo_texture.width), static_cast<float>(m_logo_texture.height)});
             ImGui::Dummy({0.0f, ui_theme::MAIN_MENU_VERTICAL_PADDING});
         }
 
@@ -37,7 +44,7 @@ void MenuModal::render() {
             float available_width = ImGui::GetContentRegionAvail().x;
 
             ImVec2 button_size = {150.0f, 32.0f};
-            int num_buttons = 3;
+            float num_buttons = 3.0f;
 
             float spacing = ImGui::GetStyle().ItemSpacing.x;
             float width = (num_buttons * button_size.x) + (num_buttons - 1) * spacing;
@@ -46,7 +53,7 @@ void MenuModal::render() {
             ImGui::SetCursorPosX(start);
 
             if (m_ui->render_menu_button("play", ui_theme::BUTTON_PADDING, button_size)) {
-                m_ui->show_modal(m_ui->m_level_selector_modal);
+                m_ui->show_modal(m_ui->m_level_selector_modal.get());
             }
 
             ImGui::SameLine();

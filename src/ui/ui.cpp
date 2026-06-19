@@ -3,16 +3,18 @@
 #include "theme.hpp"
 
 #include <algorithm>
-#include <rlImGui.h>
 
 static constexpr ImGuiWindowFlags BASIC_WINDOW_FLAGS = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
                                                        ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings;
+
+UI::~UI() {
+    shutdown();
+}
 
 void UI::initialize() {
     m_io = &ImGui::GetIO();
 
     ImGuiStyle& style = ImGui::GetStyle();
-    ImVec4* colors = style.Colors;
 
     style.WindowRounding = 0.0f;
     style.ChildRounding = 0.0f;
@@ -40,12 +42,21 @@ void UI::initialize() {
         m_io->Fonts->AddFontFromFileTTF("resources/fonts/Baloo-Regular.ttf", 20.0f, &font_cfg);
     m_fonts[BALOO][FONT_LARGE] = m_io->Fonts->AddFontFromFileTTF("resources/fonts/Baloo-Regular.ttf", 26.0f, &font_cfg);
 
-    m_debug_modal = new DebugModal(this);
-    m_level_selector_modal = new LevelSelectorModal(this);
-    m_menu_modal = new MenuModal(this);
-    m_playfield_modal = new PlayfieldModal(this);
+    m_debug_modal = std::make_unique<DebugModal>(this);
+    m_level_selector_modal = std::make_unique<LevelSelectorModal>(this);
+    m_menu_modal = std::make_unique<MenuModal>(this);
+    m_playfield_modal = std::make_unique<PlayfieldModal>(this);
 
-    show_modal(m_menu_modal);
+    show_modal(m_menu_modal.get());
+}
+
+void UI::shutdown() {
+    clear_modals();
+
+    m_debug_modal.reset();
+    m_level_selector_modal.reset();
+    m_menu_modal.reset();
+    m_playfield_modal.reset();
 }
 
 bool UI::is_modal_focused(UIModal* modal) const {
@@ -209,9 +220,10 @@ bool UI::render_button(std::string_view text, ImVec2 padding, ImVec2 size) {
 
     auto rect_min = ImGui::GetItemRectMin();
     auto rect_max = ImGui::GetItemRectMax();
+    const ImU32 border_color = ImGui::IsItemHovered() ? ImColor(0, 40, 200, 255) : ImColor(90, 90, 90, 200);
 
-    dl->AddRect({rect_min.x + 0.5f, rect_min.y + 0.5f}, {rect_max.x + 0.5f, rect_max.y + 0.5f},
-                ImGui::IsItemHovered() ? IM_COL32(0, 40, 200, 255) : IM_COL32(90, 90, 90, 200), 4.0f, 0, 2.0f);
+    dl->AddRect({rect_min.x + 0.5f, rect_min.y + 0.5f}, {rect_max.x + 0.5f, rect_max.y + 0.5f}, border_color, 4.0f, 0,
+                2.0f);
 
     ImGui::PopFont();
     ImGui::PopStyleVar(4);
@@ -241,10 +253,10 @@ bool UI::render_menu_button(std::string_view text, ImVec2 padding, ImVec2 size) 
 
     auto rect_size = ImGui::GetItemRectSize();
     auto rect_min = ImGui::GetItemRectMin();
+    const ImU32 line_color = ImGui::IsItemHovered() ? ImColor(0, 40, 200, 255) : ImColor(90, 90, 90, 200);
 
     dl->AddLine({rect_min.x + 0.5f, rect_min.y + 0.5f + rect_size.y + 2.0f},
-                {rect_min.x + 0.5f + rect_size.x, rect_min.y + 0.5f + rect_size.y + 2.0f},
-                ImGui::IsItemHovered() ? IM_COL32(0, 40, 200, 255) : IM_COL32(90, 90, 90, 200), 2.0f);
+                {rect_min.x + 0.5f + rect_size.x, rect_min.y + 0.5f + rect_size.y + 2.0f}, line_color, 2.0f);
 
     ImGui::PopFont();
     ImGui::PopStyleVar(3);

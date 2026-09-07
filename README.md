@@ -1,29 +1,26 @@
 # DASH
 
-projetinho pra testar raylib
+geometry dash inspired game created using raylib & box2d.
 
 ## TODO
 ### CORE
-- [x] basic physics system configurable per gameobject
-- [x] level system using json
-- [x] pause / unpause
-- [ ] gameobject: depth
-- [ ] fix broken imgui on specific resolutions
+- [x] gameplay loop (move, pause, etc...)
+- [ ] integrate box2d for physics
+- [ ] integrate imgui-ui for game interface
+- [x] level system with json support
+- [ ] sort gameobjets by depth before rendering
 
 ### UI
 - [x] main menu
-- [x] debug ui
 - [x] level selector
-- [ ] settings ui
-- [x] playfield: level progress bar
-- [x] playfield: pause / death ui
+- [ ] settings
+- [x] playfield (progress)
 
 ### GAMEPLAY
-- [ ] rb: SAT (Separating Axis Theorem) instead of basic aabb
 - [x] object: spike
 - [x] object: platform
 - [ ] object: trigger
-- [ ] object: end (WIP)
+- [ ] object: end
 - [x] object: static texture
 - [x] player: cube mode
 - [x] player: bird mode (aka ship)
@@ -32,9 +29,11 @@ projetinho pra testar raylib
 - [ ] behavior: invert screen
 - [ ] behavior: flip screen
 - [ ] behavior: camera control (offset, zoom)
+- [ ] level: easy (TBD)
+- [ ] level: normal (Bye Bye Sometimes)
 
 ### EDITOR
   - [ ] add/remove gameobjects
   - [ ] move gameobjects using 2d gizmo
-  - [ ] ui to change gameobject properties
-  - [ ] ui to change level metadata
+  - [ ] interface to change gameobject properties
+  - [ ] interface to change level properties

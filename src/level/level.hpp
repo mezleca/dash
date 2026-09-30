@@ -9,8 +9,7 @@
 #include <vector>
 
 struct DashLevel {
-    explicit DashLevel() {
-    }
+    explicit DashLevel() {}
     ~DashLevel();
 
     std::vector<std::unique_ptr<GameObject>> m_objects;
@@ -41,9 +40,11 @@ struct DashLevel {
 };
 
 inline static void to_json(nlohmann::json& j, const GameObject* obj) {
-    j = {{"type", obj->type},
-         {"visible", obj->visible},
-         {"texture", obj->texture_location},
-         {"position", obj->position},
-         {"dimensions", obj->dimensions}};
+    j = {
+        {"type", obj->type},
+        {"visible", obj->visible},
+        {"texture", obj->texture_location},
+        {"position", obj->position},
+        {"dimensions", obj->dimensions}
+    };
 }

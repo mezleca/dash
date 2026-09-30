@@ -1,20 +1,24 @@
 #include "game.hpp"
+#include "ui/game-ui.hpp"
 #include "../physics/rigidbody.hpp"
 #include "../utils/math.hpp"
 
-#include <cmath>
+#include <imgui-ui/runtime.hpp>
+#include <imgui-ui/diagnostics/debugger.hpp>
+#include <imgui-ui/backends/raylib/backend.hpp>
+#include <imgui-ui/layout/container.hpp>
 #include <filesystem>
 #include <iostream>
 #include <memory>
-#include <rlImGui.h>
 #include <raylib.h>
-#include <string_view>
 
 static constexpr float CAMERA_PLATFORM_X_THRESHOLD = 200.0f;
 static constexpr float CAMERA_PLATFORM_Y_THRESHOLD = 1000.0f;
 static constexpr float CAMERA_Y_SMOOTHING = 0.09f;
 static constexpr float CAMERA_X_LOOK_AHEAD = 128.0f;
 static constexpr float CAMERA_Y_LOOK_AHEAD = -128.0f;
+
+using namespace ui;
 
 Game::Game() {
     m_finished = false;
@@ -28,50 +32,64 @@ Game::Game() {
     m_camera.zoom = 1.2f;
 }
 
-Game::~Game() {
-}
+Game::~Game() {}
 
 void Game::initialize() {
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT);
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(m_window.width, m_window.height, m_window.title.c_str());
     InitAudioDevice();
 
     SetTargetFPS(60);
     SetExitKey(0);
 
-    rlImGuiSetup(true);
+    // initialize imgui-ui
+    auto backend = std::make_unique<RaylibBackend>();
 
-    // load all levels data (objects will be created only when necessary)
+    SurfaceConfig ui_config;
+    ui_config.backend = std::move(backend);
+    ui_config.enable_debugger = true;
+    m_ui = std::make_unique<Surface>(m_runtime, std::move(ui_config));
+
+    // read metadata before the selector creates cards. game objects are loaded when a card is opened.
     load_all_levels();
+    build_ui();
 
-    // load ui textures, etc...
-    m_ui.initialize();
-
-    while (!m_finished) {
-        m_ui.handle_escape();
+    while (!m_finished && !m_ui->is_done()) {
+        // physics
         handle_pause_state();
         update_simulation_timestep();
 
-        // handle resize
+        // ui events
+        m_ui->process_events();
+
+        // drawing
         if (IsWindowResized()) {
             m_window.width = GetScreenWidth();
             m_window.height = GetScreenHeight();
         }
 
         update_current_level_progress();
-
-        BeginDrawing();
-        {
-            ClearBackground({0, 0, 0, 0});
-            render();
-        }
-        EndDrawing();
+        render();
     }
 
     shutdown();
-    rlImGuiShutdown();
     CloseAudioDevice();
     CloseWindow();
+}
+
+void Game::build_ui() {
+    // load fonts
+    auto& runtime = m_ui->runtime();
+    auto* font = runtime.fonts().add("MainFont", "resources/fonts/Baloo-Regular.ttf");
+
+    m_ui->set_primary_font(font);
+    m_ui->debugger()->set_font("MainFont", 24);
+
+    // build overlay structure
+    auto& root = m_ui->root();
+    static_cast<Container&>(root).configure_all_styles([](Style& style) { style.background_color(rgba(0, 0, 0, 0)); });
+
+    m_game_ui = &root.add<GameUI>();
 }
 
 void Game::update_simulation_timestep() {
@@ -183,55 +201,42 @@ void Game::load_all_levels() {
     }
 }
 
-bool Game::load_level(std::string_view location) {
+bool Game::load_level(DashLevel& level) {
     if (m_current_level != nullptr) {
         std::cout << "[game] failed to load level while another level is active\n";
         return false;
     }
 
-    const std::string level_key(location);
-    auto level_it =
-        std::ranges::find_if(m_levels, [&level_key](const auto& level) { return level->m_file == level_key; });
+    if (level.m_objects.empty() && !level.m_temp_objects.empty()) {
+        std::cout << "[game] loading data from level " << level.m_name << "\n";
 
-    if (level_it == m_levels.end()) {
-        std::cout << "[game] failed to find level " << location << "\n";
-        return false;
-    }
-
-    DashLevel* level = level_it->get();
-
-    // load level data if needed
-    if (level->m_objects.size() == 0 && !level->m_temp_objects.empty()) {
-        std::cout << "[game] loading data from level " << level->m_name << "\n";
-
-        if (!level->load_objects()) {
-            std::cout << "[game] failed to load level from " << location << "\n";
+        if (!level.load_objects()) {
+            level.unload();
+            std::cout << "[game] failed to load level from " << level.m_file << "\n";
             return false;
         }
     }
 
-    m_current_level = level;
-    std::cout << "loaded " << location << " successfully" << "\n";
+    m_current_level = &level;
+    m_level_state = LevelState::LOADING;
+    std::cout << "loaded " << level.m_file << " successfully\n";
 
     return true;
 }
 
-bool Game::start_level(bool modify_ui) {
+bool Game::start_level() {
     if (m_current_level == nullptr) {
         std::cout << "failed to start current level (not loaded)\n";
         return false;
     }
 
-    // create / initialize player if needed
     if (m_player == nullptr) {
         m_player = std::make_unique<Player>();
-        m_player->position = m_current_level->m_player_start;
     } else {
         m_player->reset();
-        m_player->position = m_current_level->m_player_start;
     }
+    m_player->position = m_current_level->m_player_start;
 
-    // initialize raylib music, etc...
     std::filesystem::path music_full_location = m_current_level->m_file.parent_path() / m_current_level->m_music_file;
     unload_current_level_music();
 
@@ -247,74 +252,94 @@ bool Game::start_level(bool modify_ui) {
     SetMusicVolume(m_current_level->music, 0.5f);
     PlayMusicStream(m_current_level->music);
 
+    m_level_state = LevelState::PLAYING;
     m_paused = false;
     m_was_paused = false;
-
-    if (modify_ui) {
-        m_ui.clear_modals();
-        m_ui.show_modal(m_ui.m_debug_modal.get());
-        m_ui.show_modal(m_ui.m_playfield_modal.get());
-    }
+    m_game_ui->show(GameScreen::Gameplay);
 
     return true;
 }
 
-void Game::unload_current_level(bool modify_ui) {
+void Game::unload_current_level() {
     if (m_current_level == nullptr) {
         std::cout << "[game] failed to unload current level (not found)\n";
         return;
     }
 
+    m_level_state = LevelState::FINISHED;
+
     unload_current_level_music();
     m_current_level->unload();
-
     m_player.reset();
-
-    if (modify_ui) {
-        m_ui.clear_modals();
-        m_ui.show_modal(m_ui.m_menu_modal.get());
-    }
 
     m_paused = false;
     m_was_paused = false;
     m_current_level = nullptr;
+    m_game_ui->show(GameScreen::Menu);
 }
 
-void Game::restart_current_level() {
+bool Game::restart_current_level() {
     if (m_current_level == nullptr) {
         std::cout << "[game] failed to restart current level (not found)\n";
-        return;
+        return false;
     }
-
-    unload_current_level_music();
 
     m_current_level->m_current_progress = 0.0f;
     m_current_level->m_current_music_progress = 0.0f;
 
-    start_level(true);
+    return start_level();
+}
+
+void Game::finish_level_loading(bool loaded) {
+    if (loaded && start_level()) return;
+
+    if (loaded) unload_current_level();
+    m_game_ui->show(GameScreen::Levels);
+}
+
+void Game::pause_level() {
+    if (m_current_level == nullptr || m_level_state != LevelState::PLAYING || m_paused) return;
+
+    m_paused = true;
+    m_game_ui->show(GameScreen::Pause);
+}
+
+void Game::resume_level() {
+    if (m_current_level == nullptr || m_level_state != LevelState::PLAYING) return;
+
+    m_paused = false;
+    m_game_ui->show(GameScreen::Gameplay);
+}
+
+void Game::return_to_menu() {
+    if (m_current_level != nullptr) {
+        unload_current_level();
+        return;
+    }
+
+    m_game_ui->show(GameScreen::Menu);
 }
 
 void Game::finish_level() {
     m_player->m_ignore_collision = true;
-    m_player->m_finished_level = true;
     m_paused = true;
 
-    m_ui.m_playfield_modal->m_mode = PlayfieldMode::FINISH;
+    m_level_state = LevelState::FINISHED;
 }
 
 void Game::kill_player() {
-    if (m_player == nullptr || m_player->m_dead || m_player->m_finished_level) {
+    if (m_player == nullptr || m_player->m_dead || m_level_state == LevelState::FINISHED) {
         return;
     }
 
     std::cout << "[game] player died\n";
-
     m_paused = true;
 
     m_player->m_dead = true;
     m_player->m_ignore_collision = true;
 
-    m_ui.m_playfield_modal->m_mode = PlayfieldMode::DEATH;
+    m_level_state = LevelState::DEATH;
+    m_game_ui->show(GameScreen::Death);
 }
 
 void Game::update_camera_focus(GameObject* obj) {
@@ -329,7 +354,7 @@ void Game::simulate() {
 
     GameObject* closest_platform = nullptr;
 
-    if (!m_player->m_finished_level) {
+    if (m_level_state != LevelState::FINISHED) {
         const float player_center_x = m_player->position.x + m_player->dimensions.x / 2.0f;
         const float player_bottom_y = m_player->position.y + m_player->dimensions.y;
 
@@ -362,13 +387,19 @@ void Game::simulate() {
         }
     }
 
-    m_camera.target = {m_player->position.x + CAMERA_X_LOOK_AHEAD,
-                       d_math::lerp(m_camera.target.y, m_focus_y + CAMERA_Y_LOOK_AHEAD, CAMERA_Y_SMOOTHING)};
+    // update camera focus
+    m_camera.target = {
+        m_player->position.x + CAMERA_X_LOOK_AHEAD,
+        d_math::lerp(m_camera.target.y, m_focus_y + CAMERA_Y_LOOK_AHEAD, CAMERA_Y_SMOOTHING)
+    };
+
     m_camera.offset = {static_cast<float>(m_window.width) / 2.0f, static_cast<float>(m_window.height) / 2.0f};
 }
 
 void Game::render() {
-    if (m_current_level != nullptr) {
+    m_ui->begin_frame();
+
+    if (m_current_level != nullptr && m_level_state != LevelState::LOADING) {
         BeginMode2D(m_camera);
         {
             for (const auto& object : m_objects) {
@@ -378,18 +409,17 @@ void Game::render() {
         EndMode2D();
     }
 
-    rlImGuiBegin();
-    {
-        m_ui.render();
-    }
-    rlImGuiEnd();
+    m_ui->update(GetFrameTime());
+    m_ui->draw();
+    m_ui->end_frame();
 }
 
 void Game::shutdown() {
     if (m_current_level != nullptr) {
-        unload_current_level(false);
+        unload_current_level();
     }
 
     m_levels.clear();
-    m_ui.shutdown();
+    m_ui.reset();
+    m_game_ui = nullptr;
 }

@@ -1,10 +1,11 @@
 #pragma once
 
 #include "../entity/player.hpp"
-#include "../ui/ui.hpp"
 #include "../level/level.hpp"
 #include "object.hpp"
 
+#include <imgui-ui/surface.hpp>
+#include <imgui-ui/runtime.hpp>
 #include <algorithm>
 #include <filesystem>
 #include <iterator>
@@ -23,6 +24,7 @@ constexpr Vector2 SPRITE_SIZE_MEDIUM = {64, 64};
 struct Spike;
 struct DashLevel;
 struct Platform;
+class GameUI;
 
 struct GameWindow {
     std::string title;
@@ -30,14 +32,26 @@ struct GameWindow {
     int height;
 };
 
+enum class LevelState : uint8_t {
+    LOADING = 0,
+    PLAYING,
+    PAUSED,
+    DEATH,
+    FINISHED
+};
+
 struct Game {
-  public:
+public:
     explicit Game();
     ~Game();
 
+    void build_ui();
+
     GameWindow m_window;
     std::unique_ptr<Player> m_player = nullptr;
-    UI m_ui;
+    ui::Runtime m_runtime;
+    std::unique_ptr<ui::Surface> m_ui;
+    GameUI* m_game_ui = nullptr;
     Camera2D m_camera;
 
     // objects / level
@@ -52,8 +66,11 @@ struct Game {
 
     // pause
     bool m_paused = false;
+
     // camera focus
     float m_focus_y = 0.0f;
+
+    LevelState m_level_state = LevelState::LOADING;
 
     void add_game_object(GameObject* obj) {
         obj->id = static_cast<uint32_t>(m_objects.size());
@@ -83,10 +100,14 @@ struct Game {
     void render();
 
     // level related stuff
-    bool load_level(std::string_view id);
-    bool start_level(bool modify_ui);
-    void unload_current_level(bool modify_ui);
-    void restart_current_level();
+    bool load_level(DashLevel& level);
+    bool start_level();
+    void unload_current_level();
+    bool restart_current_level();
+    void finish_level_loading(bool loaded);
+    void pause_level();
+    void resume_level();
+    void return_to_menu();
     void load_all_levels();
     void finish_level();
     void kill_player();
@@ -94,7 +115,7 @@ struct Game {
     // camera related stuff
     void update_camera_focus(GameObject* obj);
 
-  private:
+private:
     float m_accumulator = 0.0f;
     bool m_was_paused = false;
 

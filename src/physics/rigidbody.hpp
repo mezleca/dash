@@ -9,7 +9,7 @@ constexpr float DEFAULT_HORIZONTAL_DAMPING = 12.0f;
 struct GameObject;
 
 struct RigidBody {
-  public:
+public:
     explicit RigidBody(GameObject* _obj);
 
     std::function<void(GameObject*)> on_hit = nullptr;

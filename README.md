@@ -1,20 +1,19 @@
 # DASH
 
-geometry dash inspired game created using raylib & box2d.
+Platformer game inspired by geometry dash.
 
 ## TODO
 ### CORE
-- [x] gameplay loop (move, pause, etc...)
+- [x] basic gameplay loop (cube / bird mode, songs, pause, etc...)
 - [ ] integrate box2d for physics
-- [ ] integrate imgui-ui for game interface
-- [x] level system with json support
+- [x] integrate imgui-ui for game interface
+- [x] game levels
+    - [x] serialize / deserialize using json
+	- [x] data (objects, etc...)
+	- [x] metadata: name
+	- [ ] metadata: description
+	- [ ] metadata: cover
 - [ ] sort gameobjets by depth before rendering
-
-### UI
-- [x] main menu
-- [x] level selector
-- [ ] settings
-- [x] playfield (progress)
 
 ### GAMEPLAY
 - [x] object: spike
@@ -31,6 +30,11 @@ geometry dash inspired game created using raylib & box2d.
 - [ ] behavior: camera control (offset, zoom)
 - [ ] level: easy (TBD)
 - [ ] level: normal (Bye Bye Sometimes)
+
+### SETTINGS
+- [ ] custom sprite (fixed size supporting pngs, svgs and gifs)
+- [ ] music volume
+- [ ] serialize / deserialize settings data
 
 ### EDITOR
   - [ ] add/remove gameobjects

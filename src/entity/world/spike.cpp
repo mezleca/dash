@@ -23,7 +23,9 @@ void Spike::render() {
     for (int i = 0; i < m_ammount; i++) {
         float spacing = i == 0 ? 0.0f : static_cast<float>(i) * width;
 
-        DrawTriangle({position.x + spacing + width / 2, position.y}, {position.x + spacing, position.y + dimensions.y},
-                     {position.x + spacing + width, position.y + dimensions.y}, {255, 0, 0, 255});
+        DrawTriangle(
+            {position.x + spacing + width / 2, position.y}, {position.x + spacing, position.y + dimensions.y},
+            {position.x + spacing + width, position.y + dimensions.y}, {255, 0, 0, 255}
+        );
     }
 }

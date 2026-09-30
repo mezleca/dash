@@ -143,8 +143,7 @@ bool DashLevel::save() {
         objects.push_back(obj->serialize());
     }
 
-    nlohmann::json j = {
-        {"name", m_name}, {"music_file", m_music_file}, {"player_start", m_player_start}, {"objects", objects}};
+    nlohmann::json j = {{"name", m_name}, {"music_file", m_music_file}, {"player_start", m_player_start}, {"objects", objects}};
 
     std::ofstream file(m_file);
 

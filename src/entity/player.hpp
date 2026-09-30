@@ -2,17 +2,20 @@
 
 #include "../game/object.hpp"
 
-enum class PlayerType : int { NONE = -1, BOX, BIRD };
+enum class PlayerType : int {
+    NONE = -1,
+    BOX,
+    BIRD
+};
 
 struct Player : public GameObject {
-  public:
+public:
     explicit Player();
     ~Player();
 
     float m_rotation = 0.0f;
 
     bool m_ignore_collision = false;
-    bool m_finished_level = false;
     bool m_dead = false;
     bool m_should_lock_in_horizontally = false;
 
@@ -28,6 +31,6 @@ struct Player : public GameObject {
         return GameObject::serialize();
     }
 
-  private:
+private:
     bool m_should_flip_player = false;
 };

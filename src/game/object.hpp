@@ -6,7 +6,14 @@
 
 #include "../utils/json.hpp"
 
-enum class ObjectType : int32_t { NONE = -1, BOX, PLATFORM, SPIKE, END, STATIC_TEXTURE };
+enum class ObjectType : int32_t {
+    NONE = -1,
+    BOX,
+    PLATFORM,
+    SPIKE,
+    END,
+    STATIC_TEXTURE
+};
 
 struct RigidBody;
 
@@ -30,11 +37,13 @@ struct GameObject {
     void load_texture(const char* location);
 
     virtual nlohmann::json serialize() const {
-        return {{"type", static_cast<int>(type)},
-                {"visible", visible},
-                {"texture", texture_location},
-                {"position", position},
-                {"dimensions", dimensions}};
+        return {
+            {"type", static_cast<int>(type)},
+            {"visible", visible},
+            {"texture", texture_location},
+            {"position", position},
+            {"dimensions", dimensions}
+        };
     }
 
     virtual void render() = 0;

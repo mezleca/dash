@@ -19,8 +19,6 @@ Player::Player() : GameObject(ObjectType::BOX) {
     update_player_type(PlayerType::BIRD);
 
     rb->on_hit = [&](GameObject* obj) {
-        if (m_finished_level || m_dead) return;
-
         if (obj->type == ObjectType::PLATFORM) {
             if (!rb->grounded) {
                 game.kill_player();
@@ -37,14 +35,12 @@ Player::Player() : GameObject(ObjectType::BOX) {
     game.add_game_object(this);
 }
 
-Player::~Player() {
-}
+Player::~Player() {}
 
 void Player::reset() {
     velocity = {0, 0};
     m_rotation = 0.0f;
     m_dead = false;
-    m_finished_level = false;
     m_should_flip_player = false;
 }
 
@@ -81,7 +77,7 @@ void Player::movement() {
 
     previous_position = position;
 
-    if (!m_finished_level) {
+    if (game.m_level_state != LevelState::FINISHED) {
         // horizontal movement
         if (is_pressing_left && !m_should_lock_in_horizontally) {
             direction = -1;
@@ -98,7 +94,7 @@ void Player::movement() {
     }
 
     // vertical movement
-    if (!m_finished_level && is_pressing_jump && (rb->grounded || is_birb)) {
+    if (game.m_level_state != LevelState::FINISHED && is_pressing_jump && (rb->grounded || is_birb)) {
         velocity.y = -jump_force;
     }
 
@@ -126,16 +122,19 @@ void Player::movement() {
 void Player::render() {
     if (!visible) return;
 
-    Vector2 interpolated_position = {d_math::lerp(previous_position.x, position.x, game.m_alpha),
-                                     d_math::lerp(previous_position.y, position.y, game.m_alpha)};
+    Vector2 interpolated_position = {
+        d_math::lerp(previous_position.x, position.x, game.m_alpha), d_math::lerp(previous_position.y, position.y, game.m_alpha)
+    };
 
     float texture_width = static_cast<float>(texture.width);
     float texture_height = static_cast<float>(texture.height);
 
     Rectangle source = {0.0f, 0.0f, m_should_flip_player ? -texture_width : texture_width, texture_height};
 
-    Rectangle dest = {interpolated_position.x + texture_width / 2.0f, interpolated_position.y + texture_height / 2.0f,
-                      texture_width, texture_height};
+    Rectangle dest = {
+        interpolated_position.x + texture_width / 2.0f, interpolated_position.y + texture_height / 2.0f, texture_width,
+        texture_height
+    };
 
     Vector2 origin = {texture_width / 2.0f, texture_height / 2.0f};
 

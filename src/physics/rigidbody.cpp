@@ -4,8 +4,10 @@
 #include <algorithm>
 
 static bool aabb(const GameObject& a, const GameObject& b) {
-    return !(a.position.x + a.dimensions.x <= b.position.x || a.position.x >= b.position.x + b.dimensions.x ||
-             a.position.y + a.dimensions.y <= b.position.y || a.position.y >= b.position.y + b.dimensions.y);
+    return !(
+        a.position.x + a.dimensions.x <= b.position.x || a.position.x >= b.position.x + b.dimensions.x ||
+        a.position.y + a.dimensions.y <= b.position.y || a.position.y >= b.position.y + b.dimensions.y
+    );
 }
 
 RigidBody::RigidBody(GameObject* _obj) : obj(_obj) {

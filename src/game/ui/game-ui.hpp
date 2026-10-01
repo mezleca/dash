@@ -37,9 +37,11 @@ protected:
 
 private:
     MenuOptionLayer* option(GameScreen screen) const;
+
     void bring_to_front(ui::Node& node);
     void focus_current();
     void close_panel();
+
     void play_level(DashLevel& level);
     void load_level(DashLevel& level);
 

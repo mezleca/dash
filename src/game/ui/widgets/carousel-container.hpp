@@ -11,12 +11,14 @@ public:
 
     CarouselContainer& select(std::size_t index);
     ui::Container& set_spacing(float spacing) override;
+
     std::size_t selected_index() const {
         return m_selected;
     }
 
 protected:
     void arrange_children() override;
+
     void event(ui::UiEvent& event) override;
     void mouse_press_event(ui::UiEvent& event) override;
     void mouse_move_event(ui::UiEvent& event) override;

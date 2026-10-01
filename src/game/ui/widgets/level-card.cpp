@@ -5,7 +5,7 @@
 
 using namespace ui;
 
-LevelCard::LevelCard(const DashLevel& level) : ButtonWidget(level.m_name, {percent(50), percent(50)}) {}
+LevelCard::LevelCard(const DashLevel& level) : ButtonWidget(level.name(), {percent(50), percent(50)}) {}
 
 void LevelCard::apply_theme_defaults(const Theme& theme) {
     ButtonWidget::apply_theme_defaults(theme);

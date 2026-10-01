@@ -1,10 +1,6 @@
 #include "platform.hpp"
+#include "../../game/sprite.hpp"
 
-#include <raylib.h>
-
-Platform::Platform(World& world) : Entity(world, ObjectType::PLATFORM) {}
-
-void Platform::render() {
-    if (!visible) return;
-    DrawRectangleRec(get_bounding_box(), {0, 120, 255, 255});
+Platform::Platform(World& world) : Entity(world, ObjectType::PLATFORM) {
+    add_component<Sprite>(SpriteType::SQUARE, Color{0, 120, 255, 255});
 }

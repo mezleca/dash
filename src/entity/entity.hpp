@@ -11,13 +11,15 @@ public:
     explicit Entity(World& world, ObjectType type, b2BodyType body_type = b2_staticBody);
     ~Entity() override;
 
-    float horizontal_damping = DEFAULT_HORIZONTAL_DAMPING;
-    bool collision_enabled = true;
-    bool grounded = false;
+    bool collision_enabled() const;
+    void set_collision_enabled(bool enabled);
+
+    bool is_grounded() const {
+        return m_grounded;
+    }
 
     Vector2 get_position() const;
     void set_position(float x, float y);
-
     Vector2 get_previous_position() const {
         return m_previous_position;
     }
@@ -27,22 +29,22 @@ public:
 
     Rectangle get_bounding_box() const;
     Vector2 get_dimensions() const;
-
     b2ShapeId get_shape() const {
         return m_shape;
     }
 
-    // NOTE: box2d uses meters internally but we serialize as pixels
+    // NOTE: box2d uses meters but we serialize as pixels.
     void set_shape(const b2Polygon& polygon);
     void set_shape(const b2Circle& circle);
     void set_shape(const b2Capsule& capsule);
 
     b2BodyType get_body_type() const;
-    float get_gravity() const;
-    bool is_trigger() const;
-
     void set_body_type(b2BodyType type);
+
+    float get_gravity() const;
     void set_gravity(float gravity);
+
+    bool is_trigger() const;
     void set_trigger(bool trigger);
 
     World& world() const {
@@ -56,13 +58,13 @@ public:
     virtual void on_sensor(Entity&) {}
 
 private:
+    b2ShapeDef shape_definition(bool trigger) const;
+
     friend class World;
 
     World& m_world;
     b2BodyId m_body = {};
     b2ShapeId m_shape = {};
     Vector2 m_previous_position = {};
-
-    void prepare_physics(float timestep);
-    b2ShapeDef shape_definition(bool trigger) const;
+    bool m_grounded = false;
 };

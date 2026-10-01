@@ -21,8 +21,6 @@ static constexpr float CAMERA_Y_LOOK_AHEAD = -128.0f;
 using namespace ui;
 
 Game::Game() {
-    m_finished = false;
-
     m_window.title = "dash";
     m_window.width = 1280;
     m_window.height = 720;
@@ -40,7 +38,6 @@ void Game::initialize() {
     SetTargetFPS(60);
     SetExitKey(0);
 
-    // initialize imgui-ui
     auto backend = std::make_unique<RaylibBackend>();
 
     SurfaceConfig ui_config;
@@ -52,21 +49,31 @@ void Game::initialize() {
     load_all_levels();
     build_ui();
 
-    while (!m_finished && !m_ui->is_done()) {
-        // physics
+    while (!m_ui->is_done()) {
+        // fixed physics ticks run before frame callbacks and drawing.
         handle_pause_state();
         update_simulation_timestep();
 
-        // ui events
         m_ui->process_events();
 
-        // drawing
         if (IsWindowResized()) {
             m_window.width = GetScreenWidth();
             m_window.height = GetScreenHeight();
         }
 
         update_current_level_progress();
+
+        if (m_current_level != nullptr && m_current_level->m_state != LevelState::LOADING) {
+            const float frametime = GetFrameTime();
+
+            // update level behaviours and remove completed ones before entity components run.
+            m_current_level->update_behaviours(frametime);
+
+            for (auto* object : m_world.entities()) {
+                object->update(frametime);
+            }
+        }
+
         render();
     }
 
@@ -76,14 +83,12 @@ void Game::initialize() {
 }
 
 void Game::build_ui() {
-    // load fonts
     auto& runtime = m_ui->runtime();
     auto* font = runtime.fonts().add("MainFont", "resources/fonts/Baloo-Regular.ttf");
 
     m_ui->set_primary_font(font);
     m_ui->debugger()->set_font("MainFont", 24);
 
-    // build overlay structure
     auto& root = m_ui->root();
     static_cast<Container&>(root).configure_all_styles([](Style& style) { style.background_color(rgba(0, 0, 0, 0)); });
 
@@ -91,7 +96,7 @@ void Game::build_ui() {
 }
 
 void Game::update_simulation_timestep() {
-    if (m_paused) {
+    if (m_current_level == nullptr || m_current_level->m_state != LevelState::PLAYING) {
         m_accumulator = 0.0f;
         m_alpha = 0.0f;
         return;
@@ -99,11 +104,12 @@ void Game::update_simulation_timestep() {
 
     m_accumulator += GetFrameTime();
 
+    // carry unfinished tick time into the interpolation fraction below.
     while (m_accumulator >= m_fixed_frametime) {
         m_accumulator -= m_fixed_frametime;
         simulate();
 
-        if (m_paused) {
+        if (is_paused()) {
             m_accumulator = 0.0f;
             break;
         }
@@ -113,11 +119,11 @@ void Game::update_simulation_timestep() {
 }
 
 void Game::handle_pause_state() {
-    if (m_paused == m_was_paused) {
+    if (is_paused() == m_was_paused) {
         return;
     }
 
-    if (m_paused) {
+    if (is_paused()) {
         m_accumulator = 0.0f;
         m_alpha = 0.0f;
         pause_current_level_music();
@@ -125,7 +131,7 @@ void Game::handle_pause_state() {
         resume_current_level_music();
     }
 
-    m_was_paused = m_paused;
+    m_was_paused = is_paused();
 }
 
 void Game::pause_current_level_music() {
@@ -160,7 +166,7 @@ void Game::unload_current_level_music() {
 }
 
 void Game::update_current_level_progress() {
-    if (m_paused || m_current_level == nullptr || !m_current_level->m_music_loaded) {
+    if (is_paused() || m_current_level == nullptr || !m_current_level->m_music_loaded) {
         return;
     }
 
@@ -173,7 +179,6 @@ void Game::update_current_level_progress() {
 void Game::load_all_levels() {
     std::cout << "[game] loading levels...\n";
 
-    // iterate through the levels folder, then read / load all the level files
     for (const auto& entry : std::filesystem::directory_iterator(LEVELS_LOCATION)) {
         if (!entry.is_directory()) {
             continue;
@@ -187,7 +192,6 @@ void Game::load_all_levels() {
             const std::string location = file.path().string();
             std::cout << "[game] found level at " << location << "\n";
 
-            // create new level and load basic metadata
             auto level = std::make_unique<DashLevel>();
             if (!level->load(location)) {
                 std::cout << "[game] failed to load level metadata from " << location << "\n";
@@ -221,7 +225,7 @@ bool Game::load_level(DashLevel& level) {
     }
 
     m_current_level = &level;
-    m_level_state = LevelState::LOADING;
+    m_current_level->m_state = LevelState::LOADING;
     std::cout << "loaded " << level.m_file << " successfully\n";
 
     return true;
@@ -238,6 +242,7 @@ bool Game::start_level() {
     } else {
         m_player->reset();
     }
+
     const Vector2 start = m_current_level->m_player_start;
     m_player->set_position(start.x, start.y);
 
@@ -256,8 +261,8 @@ bool Game::start_level() {
     SetMusicVolume(m_current_level->music, 0.5f);
     PlayMusicStream(m_current_level->music);
 
-    m_level_state = LevelState::PLAYING;
-    m_paused = false;
+    m_current_level->m_finished = false;
+    m_current_level->m_state = LevelState::PLAYING;
     m_was_paused = false;
     m_game_ui->show(GameScreen::Gameplay);
 
@@ -270,13 +275,10 @@ void Game::unload_current_level() {
         return;
     }
 
-    m_level_state = LevelState::FINISHED;
-
     unload_current_level_music();
     m_current_level->unload();
     m_player.reset();
 
-    m_paused = false;
     m_was_paused = false;
     m_current_level = nullptr;
     m_game_ui->show(GameScreen::Menu);
@@ -288,6 +290,7 @@ bool Game::restart_current_level() {
         return false;
     }
 
+    m_current_level->m_behaviours.clear();
     m_current_level->m_current_progress = 0.0f;
     m_current_level->m_current_music_progress = 0.0f;
 
@@ -301,18 +304,41 @@ void Game::finish_level_loading(bool loaded) {
     m_game_ui->show(GameScreen::Levels);
 }
 
-void Game::pause_level() {
-    if (m_current_level == nullptr || m_level_state != LevelState::PLAYING || m_paused) return;
+void Game::set_paused(bool value) {
+    if (m_current_level == nullptr || m_player == nullptr || !m_player->alive() || m_current_level->m_finished ||
+        m_current_level->m_state == LevelState::LOADING) {
+        return;
+    }
 
-    m_paused = true;
-    m_game_ui->show(GameScreen::Pause);
+    m_current_level->m_state = value ? LevelState::PAUSED : LevelState::PLAYING;
+}
+
+bool Game::is_paused() const {
+    return m_current_level != nullptr && m_current_level->m_state == LevelState::PAUSED;
+}
+
+bool Game::has_finished_level() const {
+    return m_current_level != nullptr && m_current_level->m_finished;
+}
+
+void Game::pause_level() {
+    if (m_current_level == nullptr || m_current_level->m_state != LevelState::PLAYING) return;
+
+    set_paused(true);
+
+    if (is_paused()) {
+        m_game_ui->show(GameScreen::Pause);
+    }
 }
 
 void Game::resume_level() {
-    if (m_current_level == nullptr || m_level_state != LevelState::PLAYING) return;
+    if (!is_paused()) return;
 
-    m_paused = false;
-    m_game_ui->show(GameScreen::Gameplay);
+    set_paused(false);
+
+    if (!is_paused()) {
+        m_game_ui->show(GameScreen::Gameplay);
+    }
 }
 
 void Game::return_to_menu() {
@@ -325,24 +351,21 @@ void Game::return_to_menu() {
 }
 
 void Game::finish_level() {
-    m_player->m_ignore_collision = true;
-    m_paused = true;
+    if (m_current_level == nullptr || m_player == nullptr || !m_player->alive()) return;
 
-    m_level_state = LevelState::FINISHED;
+    m_current_level->m_finished = true;
+    m_current_level->m_state = LevelState::PAUSED;
 }
 
 void Game::kill_player() {
-    if (m_player == nullptr || m_player->m_dead || m_level_state == LevelState::FINISHED) {
+    if (m_current_level == nullptr || m_player == nullptr || !m_player->alive() || m_player->in_god_mode() ||
+        has_finished_level()) {
         return;
     }
 
     std::cout << "[game] player died\n";
-    m_paused = true;
-
-    m_player->m_dead = true;
-    m_player->m_ignore_collision = true;
-
-    m_level_state = LevelState::DEATH;
+    m_player->kill();
+    m_current_level->m_state = LevelState::PAUSED;
     m_game_ui->show(GameScreen::Death);
 }
 
@@ -354,6 +377,7 @@ void Game::update_camera_focus(Entity* obj) {
 void Game::simulate() {
     if (m_player == nullptr) return;
 
+    // player movement writes velocity before box2d advances the world.
     m_player->movement();
     m_world.step(m_fixed_frametime);
 
@@ -361,14 +385,14 @@ void Game::simulate() {
     const Rectangle player_bounds = m_player->get_bounding_box();
     Entity* closest_platform = nullptr;
 
-    if (m_level_state != LevelState::FINISHED) {
+    if (!has_finished_level()) {
         const float player_center_x = player_bounds.x + player_bounds.width / 2.0f;
         const float player_bottom_y = player_bounds.y + player_bounds.height;
 
         float closest_platform_distance = CAMERA_PLATFORM_Y_THRESHOLD;
 
         for (const auto& object : m_world.entities()) {
-            if (object->type != ObjectType::PLATFORM) continue;
+            if (object->type() != ObjectType::PLATFORM) continue;
 
             const Rectangle platform_bounds = object->get_bounding_box();
             const float platform_min_x = platform_bounds.x - CAMERA_PLATFORM_X_THRESHOLD;
@@ -395,7 +419,7 @@ void Game::simulate() {
         }
     }
 
-    // update camera focus
+    // follow the player horizontally and ease toward the selected vertical focus.
     m_camera.target = {
         player_position.x + CAMERA_X_LOOK_AHEAD,
         d_math::lerp(m_camera.target.y, m_focus_y + CAMERA_Y_LOOK_AHEAD, CAMERA_Y_SMOOTHING)
@@ -405,27 +429,39 @@ void Game::simulate() {
 }
 
 void Game::render() {
+    const float frametime = GetFrameTime();
     m_ui->begin_frame();
 
-    if (m_current_level != nullptr && m_level_state != LevelState::LOADING) {
+    if (m_current_level != nullptr && m_current_level->m_state != LevelState::LOADING) {
         const auto& entities = m_world.entities();
         m_render_objects.assign(entities.begin(), entities.end());
 
-        // sort objects by z_index and store in a temp vec
-        std::stable_sort(m_render_objects.begin(), m_render_objects.end(), [](const GameObject* a, const GameObject* b) {
+        // stable order preserves load order when objects share a z_index.
+        std::stable_sort(m_render_objects.begin(), m_render_objects.end(), [](const Entity* a, const Entity* b) {
             return a->z_index < b->z_index;
         });
 
         BeginMode2D(m_camera);
         {
             for (const auto& object : m_render_objects) {
-                object->render();
+                Rectangle bounds = object->get_bounding_box();
+
+                // render the player between its positions before and after the last physics tick.
+                if (object == m_player.get()) {
+                    const Vector2 position = object->get_position();
+                    const Vector2 previous = object->get_previous_position();
+                    bounds.x += (previous.x - position.x) * (1.0f - m_alpha);
+                    bounds.y += (previous.y - position.y) * (1.0f - m_alpha);
+                }
+
+                object->render(bounds, m_camera);
             }
         }
         EndMode2D();
     }
 
-    m_ui->update(GetFrameTime());
+    // draw ui overlays after leaving the world camera.
+    m_ui->update(frametime);
     m_ui->draw();
     m_ui->end_frame();
 }

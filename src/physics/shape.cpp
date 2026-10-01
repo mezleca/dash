@@ -1,12 +1,21 @@
 #include "shape.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <stdexcept>
 
 b2Polygon make_box_shape(float width, float height) {
-    if (!std::isfinite(width) || !std::isfinite(height) || width <= 0.0f || height <= 0.0f) {
-        throw std::invalid_argument("box size must be finite and positive");
+    if (!std::isfinite(width) || !std::isfinite(height)) {
+        throw std::invalid_argument("box size must be finite");
     }
+
+    if (width <= 0.0f || height <= 0.0f) {
+        std::cerr << "[shape] warning: box size must be positive\nusing at least 1 pixel\n";
+    }
+
+    width = std::max(width, 1.0f);
+    height = std::max(height, 1.0f);
 
     const float half_width = width / (2.0f * PHYSICS_PIXELS_PER_METER);
     const float half_height = height / (2.0f * PHYSICS_PIXELS_PER_METER);
@@ -41,9 +50,12 @@ void from_json(const nlohmann::json& data, b2Polygon& polygon) {
     const auto& vertices = data.at("vertices");
     const float radius = data.value("radius", 0.0f);
 
-    if (!vertices.is_array() || vertices.size() < 3 || vertices.size() > B2_MAX_POLYGON_VERTICES || !std::isfinite(radius) ||
-        radius < 0.0f) {
-        throw std::invalid_argument("polygon requires 3 to 8 vertices and a non-negative radius");
+    if (!vertices.is_array() || vertices.size() < 3 || vertices.size() > B2_MAX_POLYGON_VERTICES || !std::isfinite(radius)) {
+        throw std::invalid_argument("polygon requires 3 to 8 vertices and a finite radius");
+    }
+
+    if (radius < 0.0f) {
+        std::cerr << "[shape] warning: negative polygon radius\nusing 0\n";
     }
 
     b2Vec2 points[B2_MAX_POLYGON_VERTICES] = {};
@@ -55,12 +67,11 @@ void from_json(const nlohmann::json& data, b2Polygon& polygon) {
 
     // box2d computes vertex order, normals, and centroid from the convex hull.
     const b2Hull hull = b2ComputeHull(points, count);
-
     if (hull.count != count || !b2ValidateHull(&hull)) {
         throw std::invalid_argument("polygon vertices must form a convex hull without duplicates");
     }
 
-    polygon = b2MakePolygon(&hull, radius / PHYSICS_PIXELS_PER_METER);
+    polygon = b2MakePolygon(&hull, std::max(radius, 0.0f) / PHYSICS_PIXELS_PER_METER);
 }
 
 void to_json(nlohmann::json& data, const b2Circle& circle) {
@@ -69,12 +80,15 @@ void to_json(nlohmann::json& data, const b2Circle& circle) {
 
 void from_json(const nlohmann::json& data, b2Circle& circle) {
     const float radius = data.at("radius").get<float>();
-
-    if (!std::isfinite(radius) || radius <= 0.0f) {
-        throw std::invalid_argument("circle radius must be finite and positive");
+    if (!std::isfinite(radius)) {
+        throw std::invalid_argument("circle radius must be finite");
     }
 
-    circle = {data.at("center").get<b2Vec2>(), radius / PHYSICS_PIXELS_PER_METER};
+    if (radius <= 0.0f) {
+        std::cerr << "[shape] warning: nonpositive circle radius\nusing 1 pixel\n";
+    }
+
+    circle = {data.at("center").get<b2Vec2>(), std::max(radius, 1.0f) / PHYSICS_PIXELS_PER_METER};
 }
 
 void to_json(nlohmann::json& data, const b2Capsule& capsule) {
@@ -89,9 +103,15 @@ void to_json(nlohmann::json& data, const b2Capsule& capsule) {
 void from_json(const nlohmann::json& data, b2Capsule& capsule) {
     const float radius = data.at("radius").get<float>();
 
-    if (!std::isfinite(radius) || radius <= 0.0f) {
-        throw std::invalid_argument("capsule radius must be finite and positive");
+    if (!std::isfinite(radius)) {
+        throw std::invalid_argument("capsule radius must be finite");
     }
 
-    capsule = {data.at("center1").get<b2Vec2>(), data.at("center2").get<b2Vec2>(), radius / PHYSICS_PIXELS_PER_METER};
+    if (radius <= 0.0f) {
+        std::cerr << "[shape] warning: nonpositive capsule radius\nusing 1 pixel\n";
+    }
+
+    capsule = {
+        data.at("center1").get<b2Vec2>(), data.at("center2").get<b2Vec2>(), std::max(radius, 1.0f) / PHYSICS_PIXELS_PER_METER
+    };
 }

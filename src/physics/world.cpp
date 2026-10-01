@@ -4,7 +4,7 @@
 World::World() {
     b2WorldDef definition = b2DefaultWorldDef();
     definition.gravity = {0.0f, DEFAULT_GRAVITY / PHYSICS_PIXELS_PER_METER};
-    definition.maximumLinearSpeed = 1000.0f;
+    definition.maximumLinearSpeed = FALL_MAX_SPEED / PHYSICS_PIXELS_PER_METER;
     definition.enableSleep = false;
 
     m_id = b2CreateWorld(&definition);
@@ -23,19 +23,27 @@ void World::remove(Entity& entity) {
 }
 
 void World::step(float timestep) {
+    // keep positions for interpolation and clear ground state before box2d updates contacts.
     for (Entity* entity : m_entities) {
-        entity->prepare_physics(timestep);
-        entity->grounded = false;
+        if (entity->get_body_type() != b2_staticBody && entity->collision_enabled()) {
+            entity->m_previous_position = entity->get_position();
+        }
+
+        entity->m_grounded = false;
     }
 
-    // one substep keeps the old full-tick gravity integration.
     b2World_Step(m_id, timestep, 1);
+    update_contacts();
+    dispatch_sensors();
+}
 
+void World::update_contacts() {
     for (Entity* entity : m_entities) {
-        if (entity->get_body_type() != b2_dynamicBody || !entity->visible || !entity->collision_enabled) {
+        if (entity->get_body_type() != b2_dynamicBody || !entity->collision_enabled()) {
             continue;
         }
 
+        // box2d gives the buffer capacity first, then returns the number of contacts it wrote.
         m_contacts.resize(static_cast<size_t>(b2Body_GetContactCapacity(entity->m_body)));
         const int count = b2Body_GetContactData(entity->m_body, m_contacts.data(), static_cast<int>(m_contacts.size()));
 
@@ -74,23 +82,22 @@ void World::step(float timestep) {
                 continue;
             }
 
-            entity->grounded |= normal.y > 0.5f;
+            entity->m_grounded |= normal.y > 0.5f;
             entity->on_contact(*other, normal);
         }
     }
+}
 
-    // notify both entities when a sensor overlap begins.
+void World::dispatch_sensors() {
     const b2SensorEvents sensors = b2World_GetSensorEvents(m_id);
 
     for (int i = 0; i < sensors.beginCount; ++i) {
         const b2SensorBeginTouchEvent& event = sensors.beginEvents[i];
 
         auto* sensor = static_cast<Entity*>(b2Body_GetUserData(b2Shape_GetBody(event.sensorShapeId)));
-
         auto* visitor = static_cast<Entity*>(b2Body_GetUserData(b2Shape_GetBody(event.visitorShapeId)));
 
         visitor->on_sensor(*sensor);
-
         sensor->on_sensor(*visitor);
     }
 }

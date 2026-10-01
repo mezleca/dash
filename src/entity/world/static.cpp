@@ -1,50 +1,34 @@
 #include "static.hpp"
-#include "../../game/game.hpp"
 
-StaticTexture::StaticTexture(World& world, bool fill_viewport)
-    : Entity(world, ObjectType::STATIC_TEXTURE), m_fill_viewport(fill_viewport) {}
+BackgroundSprite::BackgroundSprite(GameObject& object, bool fill_viewport) : Sprite(object), m_fill_viewport(fill_viewport) {}
 
-void StaticTexture::render() {
-    if (!visible) {
-        return;
-    }
-
-    Vector2 target_pos = game.m_camera.target;
-
-    float target_width = static_cast<float>(texture.width);
-    float target_height = static_cast<float>(texture.height);
-
-    Rectangle source = {0.0f, 0.0f, target_width, target_height};
+void BackgroundSprite::render(Rectangle bounds, const Camera2D& camera) const {
+    Vector2 center = camera.target;
 
     if (m_fill_viewport) {
-        target_width = static_cast<float>(GetScreenWidth());
-        target_height = static_cast<float>(GetScreenHeight());
+        bounds.width = static_cast<float>(GetScreenWidth());
+        bounds.height = static_cast<float>(GetScreenHeight());
     } else {
-        const Vector2 dimensions = get_dimensions();
-        const Vector2 position = get_position();
-
-        target_width = dimensions.x;
-        target_height = dimensions.y;
-
-        // use position as offset
-        target_pos.x += position.x;
-        target_pos.y += position.y;
+        const Vector2 position = static_cast<const Entity&>(object()).get_position();
+        center.x += position.x;
+        center.y += position.y;
     }
 
-    Rectangle dest = {target_pos.x, target_pos.y, target_width, target_height};
-    Vector2 origin = {target_width / 2, target_height / 2};
-
-    DrawTexturePro(texture, source, dest, origin, 0.0f, WHITE);
+    render_centered({center.x, center.y, bounds.width, bounds.height});
 }
 
-nlohmann::json StaticTexture::serialize() const {
-    auto data = Entity::serialize();
-    data["fill_viewport"] = m_fill_viewport;
+std::optional<nlohmann::json> BackgroundSprite::serialize() const {
+    auto data = Sprite::serialize();
+    (*data)["component"] = "background_sprite";
+    if (m_fill_viewport) (*data)["fill_viewport"] = true;
     return data;
 }
 
-void StaticTexture::deserialize(const nlohmann::json& data, const std::filesystem::path& directory) {
-    m_fill_viewport = data.value("fill_viewport", m_fill_viewport);
+void BackgroundSprite::deserialize(const nlohmann::json& data, const std::filesystem::path& directory) {
+    Sprite::deserialize(data, directory);
+    m_fill_viewport = data.value("fill_viewport", false);
+}
 
-    Entity::deserialize(data, directory);
+StaticTexture::StaticTexture(World& world, bool fill_viewport) : Entity(world, ObjectType::STATIC_TEXTURE) {
+    add_component<BackgroundSprite>(fill_viewport);
 }

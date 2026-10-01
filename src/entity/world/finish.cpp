@@ -1,20 +1,24 @@
 #include "finish.hpp"
+#include "../../game/sprite.hpp"
 
-#include <raylib.h>
+FinishPulse::FinishPulse(GameObject& object) : Component(object) {}
 
-Finish::Finish(World& world) : Entity(world, ObjectType::END) {
-    m_radius = 256.0f;
-    set_shape(make_box_shape(256.0f, 256.0f));
-}
+void FinishPulse::update(float frametime) {
+    m_alpha -= frametime;
 
-void Finish::render() {
-    if (!visible) return;
-
-    m_lum -= 1.0f * GetFrameTime();
-
-    if (m_lum < 0.0f) {
-        m_lum = 1.0f;
+    if (m_alpha < 0.0f) {
+        m_alpha = 1.0f;
     }
 
-    DrawCircleV(get_position(), m_radius, {255, 165, 0, static_cast<unsigned char>(m_lum * 255.0f)});
+    auto* sprite = object().get_component<Sprite>();
+    if (sprite != nullptr) {
+        sprite->tint.a = static_cast<unsigned char>(255.0f * m_alpha);
+    }
+}
+
+Finish::Finish(World& world) : Entity(world, ObjectType::END) {
+    set_shape(b2Circle{{0.0f, 0.0f}, 256.0f / PHYSICS_PIXELS_PER_METER});
+
+    add_component<Sprite>(SpriteType::CIRCLE, Color{255, 165, 0, 255});
+    add_component<FinishPulse>();
 }

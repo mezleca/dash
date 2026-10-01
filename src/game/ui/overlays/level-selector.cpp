@@ -16,13 +16,13 @@ LevelSelectorLayer::LevelSelectorLayer(std::string id, std::function<void(DashLe
         );
     });
 
-    if (game.m_levels.empty()) {
+    if (game.levels().empty()) {
         add<TextWidget>("no levels found");
         return;
     }
 
     auto& carousel = add<CarouselContainer>("levels");
-    for (const auto& level : game.m_levels) {
+    for (const auto& level : game.levels()) {
         auto& card = carousel.add<LevelCard>(*level);
 
         if (on_select) {

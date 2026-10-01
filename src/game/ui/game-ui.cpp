@@ -177,7 +177,7 @@ GameUI::GameUI() : LayerContainer("game-ui") {
     m_menu = &menu;
     menu.set_size({grow(), grow()});
     menu.set_content_alignment(Anchor::Center);
-    menu.add<TextWidget>("DASH").set_font(game.m_ui->get_primary_font(56));
+    menu.add<TextWidget>("DASH").set_font(game.surface().get_primary_font(56));
 
     auto& actions = menu.add<Container>("menu-actions", StackDirection::Horizontal);
     actions.set_size({grow(), fit()});
@@ -232,7 +232,7 @@ GameUI::GameUI() : LayerContainer("game-ui") {
     m_loading->set_input_mode(InputMode::None);
     m_loading->set_enabled(false);
     m_loading->set_visible(false);
-    m_loading->add<TextWidget>("loading...").set_font(game.m_ui->get_primary_font(32));
+    m_loading->add<TextWidget>("loading...").set_font(game.surface().get_primary_font(32));
 
     // blocking panels receive keyboard input before the root of the ui tree.
     for (MenuOptionLayer* layer : {m_levels, m_editor, m_settings, m_exit, m_pause, m_death}) {

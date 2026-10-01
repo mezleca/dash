@@ -1,9 +1,13 @@
 #include "player.hpp"
+#include "../game/sprite.hpp"
 #include "../utils/math.hpp"
 #include "../game/game.hpp"
 
+#include <algorithm>
+
 constexpr float JUMP_FORCE = 1495.5f;
 constexpr float HORIZONTAL_ACCELERATION = 45000.0f / 4.0f;
+constexpr float PLAYER_HORIZONTAL_DRAG = 12.0f;
 
 static float get_angle_tilt(float a, float b, float c) {
     float result = (a / b) * c;
@@ -14,45 +18,52 @@ static float get_angle_tilt(float a, float b, float c) {
     return result;
 }
 
-Player::Player(World& world) : Entity(world, ObjectType::BOX, b2_dynamicBody) {
+Player::Player(World& world, bool god_mode) : Entity(world, ObjectType::BOX, b2_dynamicBody) {
+    m_sprite = &add_component<Sprite>();
     update_player_type(PlayerType::BIRD);
+    m_in_god_mode = god_mode;
 }
 
 void Player::on_contact(Entity& other, Vector2 normal) {
-    if (m_ignore_collision || m_dead) {
+    if (m_in_god_mode || m_dead) {
         return;
     }
 
-    if (other.type == ObjectType::SPIKE || (other.type == ObjectType::PLATFORM && normal.y <= 0.5f)) {
+    if (other.type() == ObjectType::SPIKE || (other.type() == ObjectType::PLATFORM && normal.y <= 0.5f)) {
         game.kill_player();
         return;
     }
 
-    if (other.type == ObjectType::PLATFORM) {
+    if (other.type() == ObjectType::PLATFORM) {
         game.update_camera_focus(&other);
     }
 }
 
 void Player::reset() {
     set_velocity(0.0f, 0.0f);
-    grounded = false;
-    collision_enabled = true;
-    m_ignore_collision = false;
-    m_rotation = 0.0f;
+    set_collision_enabled(true);
+
     m_dead = false;
-    m_should_flip_player = false;
+    m_sprite->rotation = 0.0f;
+    m_sprite->flip_x = false;
+}
+
+void Player::kill() {
+    if (!m_in_god_mode) {
+        m_dead = true;
+    }
 }
 
 void Player::update_player_type(PlayerType player_type) {
     switch (player_type) {
         case PlayerType::NONE:
         case PlayerType::BOX: {
-            load_texture("resources/sprites/default.png");
+            m_sprite->load_texture("resources/sprites/default.png");
             set_gravity(DEFAULT_GRAVITY);
             break;
         }
         case PlayerType::BIRD: {
-            load_texture("resources/sprites/bird.png");
+            m_sprite->load_texture("resources/sprites/bird.png");
             set_gravity(DEFAULT_GRAVITY / 3.0f);
             break;
         }
@@ -62,11 +73,10 @@ void Player::update_player_type(PlayerType player_type) {
 }
 
 void Player::movement() {
-    if (!visible) return;
     if (m_dead) return;
 
     bool is_pressing_left = IsKeyDown(KEY_A);
-    bool is_pressing_right = IsKeyDown(KEY_D) || m_should_lock_in_horizontally;
+    bool is_pressing_right = IsKeyDown(KEY_D) || m_in_free_mode;
     bool is_pressing_jump = IsKeyDown(KEY_SPACE);
 
     bool is_birb = m_player_type == PlayerType::BIRD;
@@ -76,68 +86,49 @@ void Player::movement() {
 
     Vector2 velocity = get_velocity();
 
-    if (game.m_level_state != LevelState::FINISHED) {
+    if (!game.has_finished_level()) {
         // horizontal movement
-        if (is_pressing_left && !m_should_lock_in_horizontally) {
+        if (is_pressing_left && !m_in_free_mode) {
             direction = -1;
-        } else if (is_pressing_right || m_should_lock_in_horizontally) {
+        } else if (is_pressing_right) {
             direction = 1;
         }
     }
 
-    velocity.x += static_cast<float>(direction) * HORIZONTAL_ACCELERATION * game.m_fixed_frametime;
-    m_should_flip_player = direction == -1;
+    velocity.x += static_cast<float>(direction) * HORIZONTAL_ACCELERATION * game.fixed_frametime();
+
+    // box2d linear damping also slows jumps, so horizontal drag stays with player input.
+    velocity.x *= std::max(0.0f, 1.0f - PLAYER_HORIZONTAL_DRAG * game.fixed_frametime());
+    m_sprite->flip_x = direction == -1;
 
     if (is_birb) {
         jump_force /= 3.0f;
     }
 
     // vertical movement
-    if (game.m_level_state != LevelState::FINISHED && is_pressing_jump && (grounded || is_birb)) {
+    if (!game.has_finished_level() && is_pressing_jump && (is_grounded() || is_birb)) {
         velocity.y = -jump_force;
     }
 
     set_velocity(velocity.x, velocity.y);
 
     // update sprite rotation
-    if (m_rotation >= 360.0f) {
-        m_rotation = 0.0f;
+    if (m_sprite->rotation >= 360.0f) {
+        m_sprite->rotation = 0.0f;
     }
 
-    if (!grounded && !game.m_paused) {
+    if (!is_grounded() && !game.is_paused()) {
         if (is_birb) {
-            m_rotation = d_math::lerp(m_rotation, get_angle_tilt(velocity.y, jump_force, 45.0f), 0.25f);
+            m_sprite->rotation = d_math::lerp(m_sprite->rotation, get_angle_tilt(velocity.y, jump_force, 45.0f), 0.25f);
         } else {
             if (velocity.x > 0) {
-                m_rotation += 180.0f * game.m_fixed_frametime;
+                m_sprite->rotation += 180.0f * game.fixed_frametime();
             } else {
-                m_rotation -= 180.0f * game.m_fixed_frametime;
+                m_sprite->rotation -= 180.0f * game.fixed_frametime();
             }
         }
-    } else if (!game.m_paused) {
-        float target_angle = is_birb ? 0.0f : std::round(m_rotation / 90.0f) * 90.0f;
-        m_rotation = d_math::lerp(m_rotation, target_angle, 0.2f);
+    } else if (!game.is_paused()) {
+        float target_angle = is_birb ? 0.0f : std::round(m_sprite->rotation / 90.0f) * 90.0f;
+        m_sprite->rotation = d_math::lerp(m_sprite->rotation, target_angle, 0.2f);
     }
-}
-
-void Player::render() {
-    if (!visible) return;
-
-    const Vector2 position = get_position();
-    const Vector2 previous_position = get_previous_position();
-    Vector2 interpolated_position = {
-        d_math::lerp(previous_position.x, position.x, game.m_alpha), d_math::lerp(previous_position.y, position.y, game.m_alpha)
-    };
-
-    float texture_width = static_cast<float>(texture.width);
-    float texture_height = static_cast<float>(texture.height);
-
-    Rectangle source = {0.0f, 0.0f, m_should_flip_player ? -texture_width : texture_width, texture_height};
-    Rectangle dest = {
-        interpolated_position.x + texture_width / 2.0f, interpolated_position.y + texture_height / 2.0f, texture_width,
-        texture_height
-    };
-
-    Vector2 origin = {texture_width / 2.0f, texture_height / 2.0f};
-    DrawTexturePro(texture, source, dest, origin, m_should_flip_player ? -m_rotation : m_rotation, WHITE);
 }

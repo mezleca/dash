@@ -75,8 +75,6 @@ void Player::update_player_type(PlayerType player_type) {
 void Player::movement() {
     if (m_dead) return;
 
-    bool is_pressing_left = IsKeyDown(KEY_A);
-    bool is_pressing_right = IsKeyDown(KEY_D) || m_in_free_mode;
     bool is_pressing_jump = IsKeyDown(KEY_SPACE);
 
     bool is_birb = m_player_type == PlayerType::BIRD;
@@ -88,9 +86,9 @@ void Player::movement() {
 
     if (!game.has_finished_level()) {
         // horizontal movement
-        if (is_pressing_left && !m_in_free_mode) {
+        if (m_in_free_mode && IsKeyDown(KEY_A)) {
             direction = -1;
-        } else if (is_pressing_right) {
+        } else if (!m_in_free_mode || IsKeyDown(KEY_D)) {
             direction = 1;
         }
     }

@@ -36,11 +36,19 @@ protected:
     void event(ui::UiEvent& event) override;
 
 private:
+    void build_menu();
+    void build_option_panels();
+    void build_gameplay_panels();
+    void build_loading();
+
     MenuOptionLayer* option(GameScreen screen) const;
 
     void bring_to_front(ui::Node& node);
     void focus_current();
     void close_panel();
+    void show_base(GameScreen screen);
+    void show_loading();
+    void hide_loading();
 
     void play_level(DashLevel& level);
     void load_level(DashLevel& level);

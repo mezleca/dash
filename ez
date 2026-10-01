@@ -16,11 +16,17 @@ SYSTEM = platform.system()
 BUILD_DIR = CWD / "build"
 RESOURCES_DIR = CWD / "resources"
 BINARY_NAME = "dash"
+LSAN_SUPPRESSIONS = (
+    "leak:libdecor-gtk.c\n"
+    "leak:pangofc-fontmap.c\n"
+    "leak:wp_fractional_scale_manager_v1_get_fractional_scale\n"
+    "leak:wp_viewporter_get_viewport\n"
+)
 
-def run(cmd: Sequence[str], env: dict[str, str] | None = None, check: bool = True) -> int:
+def run(cmd: Sequence[str], env: dict[str, str] | None = None, check: bool = True, pass_fds: tuple[int, ...] = ()) -> int:
     print(f"exec: {subprocess.list2cmdline(list(cmd))}")
 
-    result = subprocess.run(cmd, cwd=CWD, env=env)
+    result = subprocess.run(cmd, cwd=CWD, env=env, pass_fds=pass_fds)
 
     if check and result.returncode != 0:
         print(f"command failed with exit code {result.returncode}")
@@ -157,9 +163,28 @@ def run_binary() -> int:
         print("binary not found")
         return 1
 
-    shutil.copytree(RESOURCES_DIR, BUILD_DIR / "resources", dirs_exist_ok=True)
+    resources_link = BUILD_DIR / "resources"
 
-    return run([str(binary_path)], check=False)
+    if not resources_link.is_symlink():
+        resources_link.symlink_to(RESOURCES_DIR, target_is_directory=True)
+
+    if SYSTEM != "Linux" or "suppressions=" in os.environ.get("LSAN_OPTIONS", ""):
+        return run([str(binary_path)], check=False)
+
+    # create file descriptor to store asan supressios
+    # needed because glfw leaks a bit of memory
+    fd = os.memfd_create("dash-lsan-suppressions")
+
+    try:
+        os.write(fd, LSAN_SUPPRESSIONS.encode())
+        os.lseek(fd, 0, os.SEEK_SET)
+
+        env = os.environ.copy()
+        options = env.get("LSAN_OPTIONS", "")
+        env["LSAN_OPTIONS"] = f"{options + ':' if options else ''}suppressions=/proc/self/fd/{fd}"
+        return run([str(binary_path)], env=env, check=False, pass_fds=(fd,))
+    finally:
+        os.close(fd)
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="project helper script")

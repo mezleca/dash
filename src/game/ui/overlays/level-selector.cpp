@@ -11,6 +11,7 @@ LevelSelectorLayer::LevelSelectorLayer(std::string id, std::function<void(DashLe
     : MenuOptionLayer("level-selector-" + id) {
     set_size({grow(), grow()});
     configure_all_styles([](Style& style) {
+        style.border(BORDER_NONE);
         style.background_color(
             gradient(GradientType::Linear, {{0.0F, rgb(33, 33, 33)}, {1.0F, rgb(16, 16, 16)}}, {0, 0}, {0, 1})
         );

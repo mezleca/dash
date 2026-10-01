@@ -38,6 +38,10 @@ void Game::initialize() {
     SetTargetFPS(60);
     SetExitKey(0);
 
+    if (!m_settings.load()) {
+        std::cerr << "[game] warning: settings could not be loaded\n";
+    }
+
     auto backend = std::make_unique<RaylibBackend>();
 
     SurfaceConfig ui_config;
@@ -75,6 +79,10 @@ void Game::initialize() {
         }
 
         render();
+    }
+
+    if (!m_settings.save()) {
+        std::cerr << "[game] warning: settings could not be saved\n";
     }
 
     shutdown();
@@ -173,7 +181,9 @@ void Game::update_current_level_progress() {
     UpdateMusicStream(m_current_level->music);
 
     m_current_level->m_current_music_progress = GetMusicTimePlayed(m_current_level->music);
-    if (m_current_level->m_current_progress < 100.0f) m_current_level->update();
+    if (m_current_level->m_current_progress < 100.0f) {
+        m_current_level->update();
+    }
 }
 
 void Game::load_all_levels() {
@@ -238,10 +248,13 @@ bool Game::start_level() {
     }
 
     if (m_player == nullptr) {
-        m_player = std::make_unique<Player>(m_world);
+        m_player = std::make_unique<Player>(m_world, m_settings.godmode());
     } else {
         m_player->reset();
+        m_player->set_god_mode(m_settings.godmode());
     }
+
+    m_player->set_free_mode(m_free_mode);
 
     const Vector2 start = m_current_level->m_player_start;
     m_player->set_position(start.x, start.y);
@@ -258,8 +271,10 @@ bool Game::start_level() {
     }
 
     SetMusicPan(m_current_level->music, 0.0f);
-    SetMusicVolume(m_current_level->music, 0.5f);
+    SetMusicVolume(m_current_level->music, static_cast<float>(m_settings.volume()) / 100.0f);
     PlayMusicStream(m_current_level->music);
+
+    m_settings.update_attempts(m_current_level->m_file.parent_path().filename().string());
 
     m_current_level->m_finished = false;
     m_current_level->m_state = LevelState::PLAYING;
@@ -353,6 +368,7 @@ void Game::return_to_menu() {
 void Game::finish_level() {
     if (m_current_level == nullptr || m_player == nullptr || !m_player->alive()) return;
 
+    m_settings.set_progress(m_current_level->m_file.parent_path().filename().string(), 100);
     m_current_level->m_finished = true;
     m_current_level->m_state = LevelState::PAUSED;
 }
@@ -364,9 +380,36 @@ void Game::kill_player() {
     }
 
     std::cout << "[game] player died\n";
+    m_settings.set_progress(
+        m_current_level->m_file.parent_path().filename().string(), static_cast<int>(m_current_level->m_current_progress)
+    );
     m_player->kill();
     m_current_level->m_state = LevelState::PAUSED;
     m_game_ui->show(GameScreen::Death);
+}
+
+void Game::set_music_volume(int volume) {
+    m_settings.set_volume(volume);
+
+    if (m_current_level != nullptr && m_current_level->m_music_loaded) {
+        SetMusicVolume(m_current_level->music, static_cast<float>(m_settings.volume()) / 100.0f);
+    }
+}
+
+void Game::set_godmode(bool enabled) {
+    m_settings.set_godmode(enabled);
+
+    if (m_player != nullptr) {
+        m_player->set_god_mode(enabled);
+    }
+}
+
+void Game::set_free_mode(bool enabled) {
+    m_free_mode = enabled;
+
+    if (m_player != nullptr) {
+        m_player->set_free_mode(enabled);
+    }
 }
 
 void Game::update_camera_focus(Entity* obj) {

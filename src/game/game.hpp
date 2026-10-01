@@ -2,6 +2,7 @@
 
 #include "../entity/player.hpp"
 #include "../level/level.hpp"
+#include "../settings/settings.hpp"
 
 #include <imgui-ui/surface.hpp>
 #include <imgui-ui/runtime.hpp>
@@ -48,6 +49,10 @@ public:
         return m_player.get();
     }
 
+    SettingsManager& settings() {
+        return m_settings;
+    }
+
     float fixed_frametime() const {
         return m_fixed_frametime;
     }
@@ -69,6 +74,13 @@ public:
     void finish_level();
     void kill_player();
 
+    void set_music_volume(int volume);
+    void set_godmode(bool enabled);
+    void set_free_mode(bool enabled);
+    bool free_mode() const {
+        return m_free_mode;
+    }
+
     void update_camera_focus(Entity* obj);
 
 private:
@@ -89,6 +101,7 @@ private:
     void shutdown();
 
     World m_world;
+    SettingsManager m_settings{std::filesystem::path(GetApplicationDirectory()) / "settings.json"};
     GameWindow m_window;
     std::unique_ptr<Player> m_player;
     ui::Runtime m_runtime;
@@ -105,4 +118,5 @@ private:
     float m_accumulator = 0.0f;
     float m_focus_y = 0.0f; // camera
     bool m_was_paused = false;
+    bool m_free_mode = false;
 } inline game;

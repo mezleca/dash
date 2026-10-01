@@ -6,7 +6,6 @@
 #include "../entity/world/finish.hpp"
 #include "../entity/world/trigger.hpp"
 
-#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -19,7 +18,6 @@ bool DashLevel::load(std::string_view location) {
     std::cout << "[level] loading level from " << location << "\n";
 
     std::ifstream file(location.data());
-
     if (!file.is_open()) {
         std::cout << "[level] unable to find " << LEVELS_LOCATION << "\n";
         return false;
@@ -57,6 +55,7 @@ bool DashLevel::load_objects(World& world) {
     m_behaviours.clear();
     m_objects.clear();
     m_level_end = {};
+
     bool has_finish = false;
 
     try {
@@ -122,13 +121,11 @@ bool DashLevel::save() {
     std::cout << "[level] saving level at " << m_file << "\n";
 
     nlohmann::json objects = nlohmann::json::array();
-
     for (const auto& obj : m_objects) {
         objects.push_back(obj->serialize());
     }
 
     nlohmann::json j = {{"name", m_name}, {"music_file", m_music_file}, {"player_start", m_player_start}, {"objects", objects}};
-
     std::ofstream file(m_file);
 
     if (!file.is_open()) {

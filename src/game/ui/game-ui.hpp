@@ -16,7 +16,7 @@ enum class GameScreen {
     Exit,
 };
 
-struct DashLevel;
+class DashLevel;
 class MenuOptionLayer;
 
 class GameUI : public ui::LayerContainer {

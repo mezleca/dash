@@ -2,7 +2,7 @@
 
 #include <imgui-ui/widgets/button.hpp>
 
-struct DashLevel;
+class DashLevel;
 
 class LevelCard : public ui::ButtonWidget {
 public:

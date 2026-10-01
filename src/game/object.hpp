@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include <memory>
+#include <filesystem>
 #include <string>
 
 #include "../utils/json.hpp"
@@ -15,36 +15,26 @@ enum class ObjectType : int32_t {
     STATIC_TEXTURE
 };
 
-struct RigidBody;
-
-struct GameObject {
+class GameObject {
+public:
     explicit GameObject(ObjectType type);
     virtual ~GameObject();
 
-    Texture2D texture = {};
+    GameObject(const GameObject&) = delete;
+    GameObject& operator=(const GameObject&) = delete;
+    GameObject(GameObject&&) = delete;
+    GameObject& operator=(GameObject&&) = delete;
+
     std::string texture_location;
-
-    Vector2 velocity;
-    std::unique_ptr<RigidBody> rb;
-    Vector2 previous_position;
-    Vector2 position;
-    Vector2 dimensions;
-
-    uint32_t id = 0;
+    Texture2D texture = {};
     ObjectType type;
-    bool visible;
+    int z_index = 0;
+    bool visible = true;
 
-    void load_texture(const char* location);
+    virtual void load_texture(const char* location);
 
-    virtual nlohmann::json serialize() const {
-        return {
-            {"type", static_cast<int>(type)},
-            {"visible", visible},
-            {"texture", texture_location},
-            {"position", position},
-            {"dimensions", dimensions}
-        };
-    }
+    virtual nlohmann::json serialize() const;
+    virtual void deserialize(const nlohmann::json& data, const std::filesystem::path& directory);
 
     virtual void render() = 0;
 };

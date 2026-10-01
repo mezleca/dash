@@ -1,13 +1,10 @@
 #pragma once
 
-#include "../../game/object.hpp"
+#include "../entity.hpp"
 
-struct Platform : public GameObject {
-    explicit Platform(float width, float height);
+class Platform : public Entity {
+public:
+    explicit Platform(World& world);
 
     void render() override;
-
-    nlohmann::json serialize() const override {
-        return GameObject::serialize();
-    }
 };

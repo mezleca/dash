@@ -1,11 +1,11 @@
 # DASH
 
-Platformer game inspired by geometry dash.
+Platformer Game inspired by Geometry Dash.
 
 ## TODO
 ### CORE
 - [x] basic gameplay loop (cube / bird mode, songs, pause, etc...)
-- [ ] integrate box2d for physics
+- [x] integrate box2d for physics
 - [x] integrate imgui-ui for game interface
 - [x] game levels
     - [x] serialize / deserialize using json
@@ -13,7 +13,7 @@ Platformer game inspired by geometry dash.
 	- [x] metadata: name
 	- [ ] metadata: description
 	- [ ] metadata: cover
-- [ ] sort gameobjets by depth before rendering
+- [x] sort game objects by z-index before rendering
 
 ### GAMEPLAY
 - [x] object: spike

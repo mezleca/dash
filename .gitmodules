@@ -7,3 +7,6 @@
 [submodule "vendor/imgui-ui"]
 	path = vendor/imgui-ui
 	url = https://github.com/mezleca/imgui-ui
+[submodule "vendor/box2d"]
+	path = vendor/box2d
+	url = https://github.com/erincatto/box2d

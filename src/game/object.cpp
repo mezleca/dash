@@ -1,28 +1,19 @@
-#include "game.hpp"
 #include "object.hpp"
-#include "../physics/rigidbody.hpp"
 
 #include <iostream>
 
-GameObject::GameObject(ObjectType _type) : type(_type) {
-    rb = std::make_unique<RigidBody>(this);
-
-    velocity = {0, 0};
-    position = {0, 0};
-
-    visible = true;
-}
+GameObject::GameObject(ObjectType object_type) : type(object_type) {}
 
 GameObject::~GameObject() {
     if (texture.id) {
         UnloadTexture(texture);
     }
-
-    game.remove_game_object(this);
 }
 
 void GameObject::load_texture(const char* location) {
-    if (texture.id) UnloadTexture(texture);
+    if (texture.id) {
+        UnloadTexture(texture);
+    }
 
     texture = LoadTexture(location);
 
@@ -33,8 +24,21 @@ void GameObject::load_texture(const char* location) {
         return;
     }
 
-    dimensions.x = static_cast<float>(texture.width);
-    dimensions.y = static_cast<float>(texture.height);
-
     texture_location = location;
+}
+
+nlohmann::json GameObject::serialize() const {
+    return {{"type", type}, {"visible", visible}, {"texture", texture_location}, {"z_index", z_index}};
+}
+
+void GameObject::deserialize(const nlohmann::json& data, const std::filesystem::path& directory) {
+    visible = data.value("visible", true);
+    z_index = data.value("z_index", 0);
+    const std::string location = data.value("texture", std::string());
+
+    // load relative to the level directory, but keep the original path for saving.
+    if (!location.empty()) {
+        load_texture((directory / location).c_str());
+        texture_location = location;
+    }
 }

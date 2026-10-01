@@ -1,12 +1,12 @@
 #include "game.hpp"
 #include "ui/game-ui.hpp"
-#include "../physics/rigidbody.hpp"
 #include "../utils/math.hpp"
 
 #include <imgui-ui/runtime.hpp>
 #include <imgui-ui/diagnostics/debugger.hpp>
 #include <imgui-ui/backends/raylib/backend.hpp>
 #include <imgui-ui/layout/container.hpp>
+#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -31,8 +31,6 @@ Game::Game() {
     m_camera.rotation = 0.0f;
     m_camera.zoom = 1.2f;
 }
-
-Game::~Game() {}
 
 void Game::initialize() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -104,6 +102,11 @@ void Game::update_simulation_timestep() {
     while (m_accumulator >= m_fixed_frametime) {
         m_accumulator -= m_fixed_frametime;
         simulate();
+
+        if (m_paused) {
+            m_accumulator = 0.0f;
+            break;
+        }
     }
 
     m_alpha = m_accumulator / m_fixed_frametime;
@@ -210,7 +213,7 @@ bool Game::load_level(DashLevel& level) {
     if (level.m_objects.empty() && !level.m_temp_objects.empty()) {
         std::cout << "[game] loading data from level " << level.m_name << "\n";
 
-        if (!level.load_objects()) {
+        if (!level.load_objects(m_world)) {
             level.unload();
             std::cout << "[game] failed to load level from " << level.m_file << "\n";
             return false;
@@ -231,11 +234,12 @@ bool Game::start_level() {
     }
 
     if (m_player == nullptr) {
-        m_player = std::make_unique<Player>();
+        m_player = std::make_unique<Player>(m_world);
     } else {
         m_player->reset();
     }
-    m_player->position = m_current_level->m_player_start;
+    const Vector2 start = m_current_level->m_player_start;
+    m_player->set_position(start.x, start.y);
 
     std::filesystem::path music_full_location = m_current_level->m_file.parent_path() / m_current_level->m_music_file;
     unload_current_level_music();
@@ -342,35 +346,39 @@ void Game::kill_player() {
     m_game_ui->show(GameScreen::Death);
 }
 
-void Game::update_camera_focus(GameObject* obj) {
-    m_focus_y = obj->position.y + obj->dimensions.y / 2.0f;
+void Game::update_camera_focus(Entity* obj) {
+    const Rectangle bounds = obj->get_bounding_box();
+    m_focus_y = bounds.y + bounds.height / 2.0f;
 }
 
 void Game::simulate() {
     if (m_player == nullptr) return;
 
     m_player->movement();
-    m_player->rb->simulate();
+    m_world.step(m_fixed_frametime);
 
-    GameObject* closest_platform = nullptr;
+    const Vector2 player_position = m_player->get_position();
+    const Rectangle player_bounds = m_player->get_bounding_box();
+    Entity* closest_platform = nullptr;
 
     if (m_level_state != LevelState::FINISHED) {
-        const float player_center_x = m_player->position.x + m_player->dimensions.x / 2.0f;
-        const float player_bottom_y = m_player->position.y + m_player->dimensions.y;
+        const float player_center_x = player_bounds.x + player_bounds.width / 2.0f;
+        const float player_bottom_y = player_bounds.y + player_bounds.height;
 
         float closest_platform_distance = CAMERA_PLATFORM_Y_THRESHOLD;
 
-        for (const auto& object : m_objects) {
+        for (const auto& object : m_world.entities()) {
             if (object->type != ObjectType::PLATFORM) continue;
 
-            const float platform_min_x = object->position.x - CAMERA_PLATFORM_X_THRESHOLD;
-            const float platform_max_x = object->position.x + object->dimensions.x + CAMERA_PLATFORM_X_THRESHOLD;
+            const Rectangle platform_bounds = object->get_bounding_box();
+            const float platform_min_x = platform_bounds.x - CAMERA_PLATFORM_X_THRESHOLD;
+            const float platform_max_x = platform_bounds.x + platform_bounds.width + CAMERA_PLATFORM_X_THRESHOLD;
 
             if (player_center_x < platform_min_x || player_center_x > platform_max_x) {
                 continue;
             }
 
-            const float platform_distance = std::fabs(player_bottom_y - object->position.y);
+            const float platform_distance = std::fabs(player_bottom_y - platform_bounds.y);
 
             if (platform_distance >= closest_platform_distance) {
                 continue;
@@ -389,7 +397,7 @@ void Game::simulate() {
 
     // update camera focus
     m_camera.target = {
-        m_player->position.x + CAMERA_X_LOOK_AHEAD,
+        player_position.x + CAMERA_X_LOOK_AHEAD,
         d_math::lerp(m_camera.target.y, m_focus_y + CAMERA_Y_LOOK_AHEAD, CAMERA_Y_SMOOTHING)
     };
 
@@ -400,9 +408,17 @@ void Game::render() {
     m_ui->begin_frame();
 
     if (m_current_level != nullptr && m_level_state != LevelState::LOADING) {
+        const auto& entities = m_world.entities();
+        m_render_objects.assign(entities.begin(), entities.end());
+
+        // sort objects by z_index and store in a temp vec
+        std::stable_sort(m_render_objects.begin(), m_render_objects.end(), [](const GameObject* a, const GameObject* b) {
+            return a->z_index < b->z_index;
+        });
+
         BeginMode2D(m_camera);
         {
-            for (const auto& object : m_objects) {
+            for (const auto& object : m_render_objects) {
                 object->render();
             }
         }

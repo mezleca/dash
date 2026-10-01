@@ -4,7 +4,7 @@
 
 #include <functional>
 
-struct DashLevel;
+class DashLevel;
 
 class LevelSelectorLayer : public MenuOptionLayer {
 public:

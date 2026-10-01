@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../game/object.hpp"
+#include "../entity/entity.hpp"
 
 #include <string>
 #include <string_view>
@@ -8,11 +8,12 @@
 #include <memory>
 #include <vector>
 
-struct DashLevel {
-    explicit DashLevel() {}
+class DashLevel {
+public:
+    DashLevel() = default;
     ~DashLevel();
 
-    std::vector<std::unique_ptr<GameObject>> m_objects;
+    std::vector<std::unique_ptr<Entity>> m_objects;
 
     // metadata
     nlohmann::json m_temp_objects; // will be parsed / initialized on level load
@@ -21,8 +22,8 @@ struct DashLevel {
     std::string m_music_file;      // from json
 
     // level start/end
-    Vector2 m_player_start; // from json
-    Vector2 m_level_end;    // runtime
+    Vector2 m_player_start = {}; // from json
+    Vector2 m_level_end = {};    // runtime
 
     // progress
     float m_current_progress = 0.0f;
@@ -34,17 +35,8 @@ struct DashLevel {
 
     bool save();
     bool load(std::string_view location);
-    void update();
-    bool load_objects();
+    bool load_objects(World& world);
     void unload();
-};
 
-inline static void to_json(nlohmann::json& j, const GameObject* obj) {
-    j = {
-        {"type", obj->type},
-        {"visible", obj->visible},
-        {"texture", obj->texture_location},
-        {"position", obj->position},
-        {"dimensions", obj->dimensions}
-    };
-}
+    void update();
+};

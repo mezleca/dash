@@ -1,7 +1,6 @@
 #include "player.hpp"
 #include "../utils/math.hpp"
 #include "../game/game.hpp"
-#include "../physics/rigidbody.hpp"
 
 constexpr float JUMP_FORCE = 1495.5f;
 constexpr float HORIZONTAL_ACCELERATION = 45000.0f / 4.0f;
@@ -15,30 +14,30 @@ static float get_angle_tilt(float a, float b, float c) {
     return result;
 }
 
-Player::Player() : GameObject(ObjectType::BOX) {
+Player::Player(World& world) : Entity(world, ObjectType::BOX, b2_dynamicBody) {
     update_player_type(PlayerType::BIRD);
-
-    rb->on_hit = [&](GameObject* obj) {
-        if (obj->type == ObjectType::PLATFORM) {
-            if (!rb->grounded) {
-                game.kill_player();
-            } else {
-                game.update_camera_focus(obj);
-            }
-        }
-
-        if (obj->type == ObjectType::SPIKE) {
-            game.kill_player();
-        }
-    };
-
-    game.add_game_object(this);
 }
 
-Player::~Player() {}
+void Player::on_contact(Entity& other, Vector2 normal) {
+    if (m_ignore_collision || m_dead) {
+        return;
+    }
+
+    if (other.type == ObjectType::SPIKE || (other.type == ObjectType::PLATFORM && normal.y <= 0.5f)) {
+        game.kill_player();
+        return;
+    }
+
+    if (other.type == ObjectType::PLATFORM) {
+        game.update_camera_focus(&other);
+    }
+}
 
 void Player::reset() {
-    velocity = {0, 0};
+    set_velocity(0.0f, 0.0f);
+    grounded = false;
+    collision_enabled = true;
+    m_ignore_collision = false;
     m_rotation = 0.0f;
     m_dead = false;
     m_should_flip_player = false;
@@ -49,12 +48,12 @@ void Player::update_player_type(PlayerType player_type) {
         case PlayerType::NONE:
         case PlayerType::BOX: {
             load_texture("resources/sprites/default.png");
-            rb->m_gravity = DEFAULT_GRAVITY;
+            set_gravity(DEFAULT_GRAVITY);
             break;
         }
         case PlayerType::BIRD: {
             load_texture("resources/sprites/bird.png");
-            rb->m_gravity = DEFAULT_GRAVITY / 3.0f;
+            set_gravity(DEFAULT_GRAVITY / 3.0f);
             break;
         }
     }
@@ -75,7 +74,7 @@ void Player::movement() {
     float jump_force = JUMP_FORCE;
     int direction = 0;
 
-    previous_position = position;
+    Vector2 velocity = get_velocity();
 
     if (game.m_level_state != LevelState::FINISHED) {
         // horizontal movement
@@ -94,16 +93,18 @@ void Player::movement() {
     }
 
     // vertical movement
-    if (game.m_level_state != LevelState::FINISHED && is_pressing_jump && (rb->grounded || is_birb)) {
+    if (game.m_level_state != LevelState::FINISHED && is_pressing_jump && (grounded || is_birb)) {
         velocity.y = -jump_force;
     }
+
+    set_velocity(velocity.x, velocity.y);
 
     // update sprite rotation
     if (m_rotation >= 360.0f) {
         m_rotation = 0.0f;
     }
 
-    if (!rb->grounded && !game.m_paused) {
+    if (!grounded && !game.m_paused) {
         if (is_birb) {
             m_rotation = d_math::lerp(m_rotation, get_angle_tilt(velocity.y, jump_force, 45.0f), 0.25f);
         } else {
@@ -122,6 +123,8 @@ void Player::movement() {
 void Player::render() {
     if (!visible) return;
 
+    const Vector2 position = get_position();
+    const Vector2 previous_position = get_previous_position();
     Vector2 interpolated_position = {
         d_math::lerp(previous_position.x, position.x, game.m_alpha), d_math::lerp(previous_position.y, position.y, game.m_alpha)
     };
@@ -130,13 +133,11 @@ void Player::render() {
     float texture_height = static_cast<float>(texture.height);
 
     Rectangle source = {0.0f, 0.0f, m_should_flip_player ? -texture_width : texture_width, texture_height};
-
     Rectangle dest = {
         interpolated_position.x + texture_width / 2.0f, interpolated_position.y + texture_height / 2.0f, texture_width,
         texture_height
     };
 
     Vector2 origin = {texture_width / 2.0f, texture_height / 2.0f};
-
     DrawTexturePro(texture, source, dest, origin, m_should_flip_player ? -m_rotation : m_rotation, WHITE);
 }

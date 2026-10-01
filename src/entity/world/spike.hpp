@@ -1,17 +1,15 @@
 #pragma once
 
-#include "../../game/object.hpp"
+#include "../entity.hpp"
 
-struct Spike : public GameObject {
-    explicit Spike(int ammount);
+class Spike : public Entity {
+public:
+    explicit Spike(World& world, int amount);
 
-    int m_ammount = 0;
+    int m_amount = 0;
 
     void render() override;
 
-    nlohmann::json serialize() const override {
-        auto j = GameObject::serialize();
-        j["spike_ammount"] = m_ammount;
-        return j;
-    }
+    nlohmann::json serialize() const override;
+    void deserialize(const nlohmann::json& data, const std::filesystem::path& directory) override;
 };

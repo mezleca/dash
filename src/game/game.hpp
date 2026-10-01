@@ -2,13 +2,10 @@
 
 #include "../entity/player.hpp"
 #include "../level/level.hpp"
-#include "object.hpp"
 
 #include <imgui-ui/surface.hpp>
 #include <imgui-ui/runtime.hpp>
-#include <algorithm>
 #include <filesystem>
-#include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,9 +18,9 @@ constexpr float DEFAULT_FIXED_FRAMETIME = 1.0f / 60.0f;
 constexpr Vector2 SPRITE_SIZE_HIGH = {128, 128};
 constexpr Vector2 SPRITE_SIZE_MEDIUM = {64, 64};
 
-struct Spike;
-struct DashLevel;
-struct Platform;
+class Spike;
+class DashLevel;
+class Platform;
 class GameUI;
 
 struct GameWindow {
@@ -40,13 +37,14 @@ enum class LevelState : uint8_t {
     FINISHED
 };
 
-struct Game {
+class Game {
 public:
     explicit Game();
-    ~Game();
+    ~Game() = default;
 
     void build_ui();
 
+    World m_world;
     GameWindow m_window;
     std::unique_ptr<Player> m_player = nullptr;
     ui::Runtime m_runtime;
@@ -56,42 +54,21 @@ public:
 
     // objects / level
     DashLevel* m_current_level = nullptr;
-    std::vector<GameObject*> m_objects;
     std::vector<std::unique_ptr<DashLevel>> m_levels;
 
     // window
     float m_fixed_frametime = DEFAULT_FIXED_FRAMETIME;
     float m_alpha = 0.0f;
+
+    // camera focus
+    float m_focus_y = 0.0f;
+
     bool m_finished = false;
 
     // pause
     bool m_paused = false;
 
-    // camera focus
-    float m_focus_y = 0.0f;
-
     LevelState m_level_state = LevelState::LOADING;
-
-    void add_game_object(GameObject* obj) {
-        obj->id = static_cast<uint32_t>(m_objects.size());
-        m_objects.push_back(obj);
-    }
-
-    void remove_game_object(GameObject* obj) {
-        if (obj->id >= m_objects.size() || m_objects[obj->id] != obj) {
-            auto object_it = std::ranges::find(m_objects, obj);
-
-            if (object_it == m_objects.end()) {
-                return;
-            }
-
-            obj->id = static_cast<uint32_t>(std::distance(m_objects.begin(), object_it));
-        }
-
-        std::swap(m_objects[obj->id], m_objects.back());
-        m_objects[obj->id]->id = obj->id;
-        m_objects.pop_back();
-    }
 
     // core
     void initialize();
@@ -113,9 +90,10 @@ public:
     void kill_player();
 
     // camera related stuff
-    void update_camera_focus(GameObject* obj);
+    void update_camera_focus(Entity* obj);
 
 private:
+    std::vector<GameObject*> m_render_objects;
     float m_accumulator = 0.0f;
     bool m_was_paused = false;
 

@@ -9,21 +9,48 @@
             "fill_viewport": true,
             "texture": "1.png",
             "position": { "x": 0.0, "y": -128 },
-            "dimensions": { "x": 128, "y": 128 }
+            "shape": {
+                "type": "polygon",
+                "vertices": [
+                    {"x": 0, "y": 0},
+                    {"x": 128, "y": 0},
+                    {"x": 128, "y": 128},
+                    {"x": 0, "y": 128}
+                ],
+                "radius": 0.0
+            }
         },
         {
             "type": 1,
             "visible": true,
             "texture": "",
             "position": { "x": 0.0, "y": 64.0 },
-            "dimensions": { "x": 4096.0, "y": 16.0 }
+            "shape": {
+                "type": "polygon",
+                "vertices": [
+                    {"x": 0, "y": 0},
+                    {"x": 4096.0, "y": 0},
+                    {"x": 4096.0, "y": 16.0},
+                    {"x": 0, "y": 16.0}
+                ],
+                "radius": 0.0
+            }
         },
         {
             "type": 2,
             "visible": true,
             "texture": "",
             "position": { "x": 512.0, "y": 0.0 },
-            "dimensions": { "x": 0.0, "y": 0.0 },
+            "shape": {
+                "type": "polygon",
+                "vertices": [
+                    {"x": 0, "y": 0},
+                    {"x": 192, "y": 0},
+                    {"x": 192, "y": 64},
+                    {"x": 0, "y": 64}
+                ],
+                "radius": 0.0
+            },
             "spike_ammount": 3
         },
         {
@@ -31,7 +58,16 @@
             "visible": true,
             "texture": "",
             "position": { "x": 1024.0, "y": 0.0 },
-            "dimensions": { "x": 0.0, "y": 0.0 },
+            "shape": {
+                "type": "polygon",
+                "vertices": [
+                    {"x": 0, "y": 0},
+                    {"x": 128, "y": 0},
+                    {"x": 128, "y": 64},
+                    {"x": 0, "y": 64}
+                ],
+                "radius": 0.0
+            },
             "spike_ammount": 2
         },
         {
@@ -39,21 +75,48 @@
             "visible": true,
             "texture": "",
             "position": { "x": 900.0, "y": -64 },
-            "dimensions": { "x": 128.0, "y": 20.0 }
+            "shape": {
+                "type": "polygon",
+                "vertices": [
+                    {"x": 0, "y": 0},
+                    {"x": 128.0, "y": 0},
+                    {"x": 128.0, "y": 20.0},
+                    {"x": 0, "y": 20.0}
+                ],
+                "radius": 0.0
+            }
         },
         {
             "type": 1,
             "visible": true,
             "texture": "",
             "position": { "x": 1000.0, "y": -150 },
-            "dimensions": { "x": 512, "y": 20.0 }
+            "shape": {
+                "type": "polygon",
+                "vertices": [
+                    {"x": 0, "y": 0},
+                    {"x": 512, "y": 0},
+                    {"x": 512, "y": 20.0},
+                    {"x": 0, "y": 20.0}
+                ],
+                "radius": 0.0
+            }
         },
         {
             "type": 2,
             "visible": true,
             "texture": "",
             "position": { "x": 1500.0, "y": 0.0 },
-            "dimensions": { "x": 0.0, "y": 0.0 },
+            "shape": {
+                "type": "polygon",
+                "vertices": [
+                    {"x": 0, "y": 0},
+                    {"x": 1280, "y": 0},
+                    {"x": 1280, "y": 64},
+                    {"x": 0, "y": 64}
+                ],
+                "radius": 0.0
+            },
             "spike_ammount": 20
         },
         {
@@ -61,7 +124,16 @@
             "visible": true,
             "texture": "",
             "position": { "x": 4100, "y": 100 },
-            "dimensions": { "x": 1024, "y": 20.0 }
+            "shape": {
+                "type": "polygon",
+                "vertices": [
+                    {"x": 0, "y": 0},
+                    {"x": 1024, "y": 0},
+                    {"x": 1024, "y": 20.0},
+                    {"x": 0, "y": 20.0}
+                ],
+                "radius": 0.0
+            }
         }
     ]
 }

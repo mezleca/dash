@@ -1,16 +1,13 @@
 #pragma once
 
-#include "../../game/object.hpp"
+#include "../entity.hpp"
 
-struct Finish : public GameObject {
-    explicit Finish();
+class Finish : public Entity {
+public:
+    explicit Finish(World& world);
 
     float m_radius = 0.0f;
     float m_lum = 0.0f;
 
     void render() override;
-
-    nlohmann::json serialize() const override {
-        return GameObject::serialize();
-    }
 };

@@ -279,7 +279,7 @@ bool Game::start_level() {
     m_current_level->m_finished = false;
     m_current_level->m_state = LevelState::PLAYING;
     m_was_paused = false;
-    m_game_ui->show(GameScreen::Gameplay);
+    m_game_ui->show_screen(GameScreen::Gameplay);
 
     return true;
 }
@@ -296,7 +296,7 @@ void Game::unload_current_level() {
 
     m_was_paused = false;
     m_current_level = nullptr;
-    m_game_ui->show(GameScreen::Menu);
+    m_game_ui->show_screen(GameScreen::Menu);
 }
 
 bool Game::restart_current_level() {
@@ -316,7 +316,8 @@ void Game::finish_level_loading(bool loaded) {
     if (loaded && start_level()) return;
 
     if (loaded) unload_current_level();
-    m_game_ui->show(GameScreen::Levels);
+    m_game_ui->show_screen(GameScreen::Menu);
+    m_game_ui->show_screen(GameScreen::Levels);
 }
 
 void Game::set_paused(bool value) {
@@ -342,7 +343,7 @@ void Game::pause_level() {
     set_paused(true);
 
     if (is_paused()) {
-        m_game_ui->show(GameScreen::Pause);
+        m_game_ui->show_screen(GameScreen::Pause);
     }
 }
 
@@ -352,7 +353,7 @@ void Game::resume_level() {
     set_paused(false);
 
     if (!is_paused()) {
-        m_game_ui->show(GameScreen::Gameplay);
+        m_game_ui->show_screen(GameScreen::Gameplay);
     }
 }
 
@@ -362,7 +363,7 @@ void Game::return_to_menu() {
         return;
     }
 
-    m_game_ui->show(GameScreen::Menu);
+    m_game_ui->show_screen(GameScreen::Menu);
 }
 
 void Game::finish_level() {
@@ -385,7 +386,7 @@ void Game::kill_player() {
     );
     m_player->kill();
     m_current_level->m_state = LevelState::PAUSED;
-    m_game_ui->show(GameScreen::Death);
+    m_game_ui->show_screen(GameScreen::Death);
 }
 
 void Game::set_music_volume(int volume) {

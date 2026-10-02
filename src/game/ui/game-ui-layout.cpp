@@ -20,17 +20,18 @@ GameUI::GameUI() : LayerContainer("game-ui") {
     build_menu();
     build_option_panels();
     build_gameplay_panels();
-    build_loading();
 
     // blocking panels receive keyboard input before the root of the ui tree.
-    for (MenuOptionLayer* layer : {m_levels, m_editor, m_settings, m_exit, m_pause, m_death}) {
-        layer->on_key_press([this](UiEvent& event) { this->event(event); });
+    for (const auto& entry : m_screens) {
+        if (auto* layer = dynamic_cast<MenuOptionLayer*>(entry.second)) {
+            layer->on_key_press([this](UiEvent& event) { this->event(event); });
+        }
     }
 }
 
 void GameUI::build_menu() {
     auto& menu = add<Container>("main-menu");
-    m_menu = &menu;
+    m_screens.emplace(GameScreen::Menu, &menu);
     menu.set_size({grow(), grow()});
     menu.set_content_alignment(Anchor::Center);
     menu.add<TextWidget>("DASH").set_font(game.surface().get_primary_font(56));
@@ -49,20 +50,37 @@ void GameUI::build_menu() {
     }};
 
     for (const auto& [text, screen] : options) {
-        actions.add<MenuButton>(text).on_click([this, screen] { show(screen); });
+        actions.add<MenuButton>(text).on_click([this, screen] { show_screen(screen); });
     }
+    menu.set_visible(true);
+    m_open.push_back(GameScreen::Menu);
 }
 
 void GameUI::build_option_panels() {
-    m_levels = &add<LevelSelectorLayer>("play", [this](DashLevel& level) { play_level(level); });
-    m_editor = &add<LevelSelectorLayer>("editor");
-    m_settings = &add<SettingsLayer>("game");
-    m_exit = &add<ExitLayer>("game", [this] { close_panel(); });
+    m_screens.emplace(GameScreen::Levels, &add<LevelSelectorLayer>("play", [this](DashLevel& level) { play_level(level); }));
+    m_screens.emplace(GameScreen::Editor, &add<LevelSelectorLayer>("editor"));
+    m_screens.emplace(GameScreen::Settings, &add<SettingsLayer>("game"));
+    m_screens.emplace(GameScreen::Exit, &add<ExitLayer>("game", [this] { hide_screen(GameScreen::Exit); }));
+    auto& loading = add<LayerContainer>("level-loading");
+    m_screens.emplace(GameScreen::Loading, &loading);
+    loading.set_size({grow(), grow()});
+    loading.set_content_alignment(Anchor::BottomCenter);
+    loading.set_input_mode(InputMode::Blocker);
+    loading.set_enabled(false);
+    loading.set_visible(false);
+    loading.add<TextWidget>("loading...").set_font(game.surface().get_primary_font(32));
 }
 
 void GameUI::build_gameplay_panels() {
+    auto& gameplay = add<LayerContainer>("gameplay");
+    m_screens.emplace(GameScreen::Gameplay, &gameplay);
+    gameplay.set_size({grow(), grow()});
+    gameplay.set_input_mode(InputMode::None);
+    gameplay.set_enabled(false);
+    gameplay.set_visible(false);
+
     auto& pause = add<MenuOptionLayer>("pause");
-    m_pause = &pause;
+    m_screens.emplace(GameScreen::Pause, &pause);
     pause.set_content_alignment(Anchor::Center);
     auto& pause_actions = pause.add<Container>("pause-actions");
     pause_actions.set_size({fit(), fit()});
@@ -70,11 +88,11 @@ void GameUI::build_gameplay_panels() {
     pause_actions.set_spacing(12.0F);
     pause_actions.add<TextWidget>("paused");
     pause_actions.add<MenuButton>("resume").on_click([] { game.resume_level(); });
-    pause_actions.add<MenuButton>("settings").on_click([this] { show(GameScreen::Settings); });
+    pause_actions.add<MenuButton>("settings").on_click([this] { show_screen(GameScreen::Settings); });
     pause_actions.add<MenuButton>("main menu").on_click([] { game.return_to_menu(); });
 
     auto& death = add<MenuOptionLayer>("death");
-    m_death = &death;
+    m_screens.emplace(GameScreen::Death, &death);
     death.set_content_alignment(Anchor::Center);
     auto& death_actions = death.add<Container>("death-actions");
     death_actions.set_size({fit(), fit()});
@@ -83,15 +101,4 @@ void GameUI::build_gameplay_panels() {
     death_actions.add<TextWidget>("you died");
     death_actions.add<MenuButton>("retry").on_click([] { game.restart_current_level(); });
     death_actions.add<MenuButton>("main menu").on_click([] { game.return_to_menu(); });
-}
-
-void GameUI::build_loading() {
-    // the loading label stays above the selector without taking input before the fade starts.
-    m_loading = &add<LayerContainer>("level-loading");
-    m_loading->set_size({grow(), grow()});
-    m_loading->set_content_alignment(Anchor::BottomCenter);
-    m_loading->set_input_mode(InputMode::None);
-    m_loading->set_enabled(false);
-    m_loading->set_visible(false);
-    m_loading->add<TextWidget>("loading...").set_font(game.surface().get_primary_font(32));
 }

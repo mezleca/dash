@@ -2,12 +2,17 @@
 #include "../game/sprite.hpp"
 #include "../utils/math.hpp"
 #include "../game/game.hpp"
+#include "../game/camera.hpp"
 
 #include <algorithm>
 
 constexpr float JUMP_FORCE = 1495.5f;
 constexpr float HORIZONTAL_ACCELERATION = 45000.0f / 4.0f;
 constexpr float PLAYER_HORIZONTAL_DRAG = 12.0f;
+constexpr float CAMERA_PLATFORM_X_THRESHOLD = 200.0f;
+constexpr float CAMERA_PLATFORM_Y_THRESHOLD = 1000.0f;
+constexpr float CAMERA_Y_SMOOTHING = 0.09f;
+constexpr Vector2 CAMERA_LOOK_AHEAD = {128.0f, -128.0f};
 
 static float get_angle_tilt(float a, float b, float c) {
     float result = (a / b) * c;
@@ -25,7 +30,7 @@ Player::Player(World& world, bool god_mode) : Entity(world, ObjectType::BOX, b2_
 }
 
 void Player::on_contact(Entity& other, Vector2 normal) {
-    if (m_in_god_mode || m_dead) {
+    if (m_in_god_mode || m_dead || m_frozen) {
         return;
     }
 
@@ -35,7 +40,7 @@ void Player::on_contact(Entity& other, Vector2 normal) {
     }
 
     if (other.type() == ObjectType::PLATFORM) {
-        game.update_camera_focus(&other);
+        update_camera_focus(other);
     }
 }
 
@@ -44,14 +49,57 @@ void Player::reset() {
     set_collision_enabled(true);
 
     m_dead = false;
+    m_frozen = false;
     m_sprite->rotation = 0.0f;
     m_sprite->flip_x = false;
+    m_camera_focus_y = 0.0f;
+}
+
+void Player::update_camera_focus(const Entity& entity) {
+    const Rectangle bounds = entity.get_bounding_box();
+    m_camera_focus_y = bounds.y + bounds.height / 2.0f;
+}
+
+void Player::update_camera(GameCamera& camera, const World& world, bool level_finished) {
+    if (!level_finished) {
+        const Rectangle bounds = get_bounding_box();
+        const float center_x = bounds.x + bounds.width / 2.0f;
+        const float bottom_y = bounds.y + bounds.height;
+        const Entity* closest_platform = nullptr;
+        float closest_distance = CAMERA_PLATFORM_Y_THRESHOLD;
+
+        for (const Entity* entity : world.entities()) {
+            if (entity->type() != ObjectType::PLATFORM) continue;
+
+            const Rectangle platform = entity->get_bounding_box();
+            if (center_x < platform.x - CAMERA_PLATFORM_X_THRESHOLD ||
+                center_x > platform.x + platform.width + CAMERA_PLATFORM_X_THRESHOLD)
+                continue;
+
+            const float distance = std::fabs(bottom_y - platform.y);
+            if (distance >= closest_distance) continue;
+
+            closest_platform = entity;
+            closest_distance = distance;
+        }
+
+        update_camera_focus(closest_platform == nullptr ? *this : *closest_platform);
+    }
+
+    const Vector2 position = get_position();
+    camera.set_target({position.x + CAMERA_LOOK_AHEAD.x, m_camera_focus_y + CAMERA_LOOK_AHEAD.y}, {1.0f, CAMERA_Y_SMOOTHING});
 }
 
 void Player::kill() {
-    if (!m_in_god_mode) {
-        m_dead = true;
-    }
+    m_dead = true;
+}
+
+void Player::freeze() {
+    m_frozen = true;
+    set_velocity(0.0f, 0.0f);
+
+    const Vector2 position = get_position();
+    set_position(position.x, position.y);
 }
 
 void Player::update_player_type(PlayerType player_type) {
@@ -73,7 +121,7 @@ void Player::update_player_type(PlayerType player_type) {
 }
 
 void Player::movement() {
-    if (m_dead) return;
+    if (m_dead || m_frozen) return;
 
     bool is_pressing_jump = IsKeyDown(KEY_SPACE);
 

@@ -91,9 +91,15 @@ void GameUI::build_gameplay_panels() {
     pause_actions.add<MenuButton>("settings").on_click([this] { show_screen(GameScreen::Settings); });
     pause_actions.add<MenuButton>("main menu").on_click([] { game.return_to_menu(); });
 
-    auto& death = add<MenuOptionLayer>("death");
+    auto& death = add<MenuOptionLayer>("death", TransitionSpec{0.15F, easing::out_cubic}, false);
     m_screens.emplace(GameScreen::Death, &death);
+    death.set_size({grow(), grow()});
     death.set_content_alignment(Anchor::Center);
+    death.configure_all_styles([](Style& style) {
+        style.background_color(rgba(160, 0, 0, 85));
+        style.border(0);
+    });
+
     auto& death_actions = death.add<Container>("death-actions");
     death_actions.set_size({fit(), fit()});
     death_actions.set_content_alignment(Anchor::Center);

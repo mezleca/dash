@@ -1,6 +1,5 @@
 #include "game.hpp"
 #include "ui/game-ui.hpp"
-#include "../utils/math.hpp"
 
 #include <imgui-ui/runtime.hpp>
 #include <imgui-ui/diagnostics/debugger.hpp>
@@ -12,22 +11,12 @@
 #include <memory>
 #include <raylib.h>
 
-static constexpr float CAMERA_PLATFORM_X_THRESHOLD = 200.0f;
-static constexpr float CAMERA_PLATFORM_Y_THRESHOLD = 1000.0f;
-static constexpr float CAMERA_Y_SMOOTHING = 0.09f;
-static constexpr float CAMERA_X_LOOK_AHEAD = 128.0f;
-static constexpr float CAMERA_Y_LOOK_AHEAD = -128.0f;
-
 using namespace ui;
 
 Game::Game() {
     m_window.title = "dash";
     m_window.width = 1280;
     m_window.height = 720;
-
-    m_camera = {};
-    m_camera.rotation = 0.0f;
-    m_camera.zoom = 1.2f;
 }
 
 void Game::initialize() {
@@ -65,13 +54,15 @@ void Game::initialize() {
             m_window.height = GetScreenHeight();
         }
 
-        update_current_level_progress();
+        if (m_current_level != nullptr) m_current_level->update();
 
-        if (m_current_level != nullptr && m_current_level->m_state != LevelState::LOADING) {
+        if (m_current_level != nullptr && m_current_level->state() != LevelState::LOADING) {
             const float frametime = GetFrameTime();
 
             // update level behaviours and remove completed ones before entity components run.
-            m_current_level->update_behaviours(frametime);
+            if (m_current_level->state() != LevelState::DEATH) {
+                m_current_level->update_behaviours(frametime);
+            }
 
             for (auto* object : m_world.entities()) {
                 object->update(frametime);
@@ -104,7 +95,7 @@ void Game::build_ui() {
 }
 
 void Game::update_simulation_timestep() {
-    if (m_current_level == nullptr || m_current_level->m_state != LevelState::PLAYING) {
+    if (m_current_level == nullptr || m_current_level->state() != LevelState::PLAYING) {
         m_accumulator = 0.0f;
         m_alpha = 0.0f;
         return;
@@ -117,7 +108,7 @@ void Game::update_simulation_timestep() {
         m_accumulator -= m_fixed_frametime;
         simulate();
 
-        if (is_paused()) {
+        if (m_current_level->state() != LevelState::PLAYING) {
             m_accumulator = 0.0f;
             break;
         }
@@ -134,56 +125,9 @@ void Game::handle_pause_state() {
     if (is_paused()) {
         m_accumulator = 0.0f;
         m_alpha = 0.0f;
-        pause_current_level_music();
-    } else {
-        resume_current_level_music();
     }
 
     m_was_paused = is_paused();
-}
-
-void Game::pause_current_level_music() {
-    if (m_current_level == nullptr || !m_current_level->m_music_loaded) {
-        return;
-    }
-
-    std::cout << "[game] pausing music\n";
-    PauseMusicStream(m_current_level->music);
-}
-
-void Game::resume_current_level_music() {
-    if (m_current_level == nullptr || !m_current_level->m_music_loaded) {
-        return;
-    }
-
-    std::cout << "[game] resuming music\n";
-    SeekMusicStream(m_current_level->music, m_current_level->m_current_music_progress);
-    ResumeMusicStream(m_current_level->music);
-}
-
-void Game::unload_current_level_music() {
-    if (m_current_level == nullptr || !m_current_level->m_music_loaded) {
-        return;
-    }
-
-    StopMusicStream(m_current_level->music);
-    UnloadMusicStream(m_current_level->music);
-
-    m_current_level->music = {};
-    m_current_level->m_music_loaded = false;
-}
-
-void Game::update_current_level_progress() {
-    if (is_paused() || m_current_level == nullptr || !m_current_level->m_music_loaded) {
-        return;
-    }
-
-    UpdateMusicStream(m_current_level->music);
-
-    m_current_level->m_current_music_progress = GetMusicTimePlayed(m_current_level->music);
-    if (m_current_level->m_current_progress < 100.0f) {
-        m_current_level->update();
-    }
 }
 
 void Game::load_all_levels() {
@@ -214,7 +158,7 @@ void Game::load_all_levels() {
     }
 
     for (const auto& level : m_levels) {
-        std::cout << "[game] loaded level: " << level->m_name << "\n";
+        std::cout << "[game] loaded level: " << level->name() << "\n";
     }
 }
 
@@ -224,19 +168,19 @@ bool Game::load_level(DashLevel& level) {
         return false;
     }
 
-    if (level.m_objects.empty() && !level.m_temp_objects.empty()) {
-        std::cout << "[game] loading data from level " << level.m_name << "\n";
+    if (level.objects().empty()) {
+        std::cout << "[game] loading data from level " << level.name() << "\n";
 
         if (!level.load_objects(m_world)) {
             level.unload();
-            std::cout << "[game] failed to load level from " << level.m_file << "\n";
+            std::cout << "[game] failed to load level from " << level.file() << "\n";
             return false;
         }
     }
 
     m_current_level = &level;
-    m_current_level->m_state = LevelState::LOADING;
-    std::cout << "loaded " << level.m_file << " successfully\n";
+    m_current_level->set_state(LevelState::LOADING);
+    std::cout << "loaded " << level.file() << " successfully\n";
 
     return true;
 }
@@ -255,29 +199,19 @@ bool Game::start_level() {
     }
 
     m_player->set_free_mode(m_free_mode);
+    m_camera.set_zoom(1.2f);
+    m_camera.set_rotation(0.0f);
 
-    const Vector2 start = m_current_level->m_player_start;
+    const Vector2 start = m_current_level->player_start();
     m_player->set_position(start.x, start.y);
 
-    std::filesystem::path music_full_location = m_current_level->m_file.parent_path() / m_current_level->m_music_file;
-    unload_current_level_music();
+    m_current_level->reset();
+    m_current_level->set_music_volume(static_cast<float>(m_settings.volume()) / 100.0f);
+    if (!m_current_level->load_music()) return false;
 
-    m_current_level->music = LoadMusicStream(music_full_location.c_str());
-    m_current_level->m_music_loaded = IsMusicValid(m_current_level->music);
+    m_settings.update_attempts(m_current_level->file().parent_path().filename().string());
 
-    if (!m_current_level->m_music_loaded) {
-        std::cout << "[game] failed to load music from " << music_full_location << "\n";
-        return false;
-    }
-
-    SetMusicPan(m_current_level->music, 0.0f);
-    SetMusicVolume(m_current_level->music, static_cast<float>(m_settings.volume()) / 100.0f);
-    PlayMusicStream(m_current_level->music);
-
-    m_settings.update_attempts(m_current_level->m_file.parent_path().filename().string());
-
-    m_current_level->m_finished = false;
-    m_current_level->m_state = LevelState::PLAYING;
+    m_current_level->set_state(LevelState::PLAYING);
     m_was_paused = false;
     m_game_ui->show_screen(GameScreen::Gameplay);
 
@@ -290,7 +224,6 @@ void Game::unload_current_level() {
         return;
     }
 
-    unload_current_level_music();
     m_current_level->unload();
     m_player.reset();
 
@@ -305,10 +238,6 @@ bool Game::restart_current_level() {
         return false;
     }
 
-    m_current_level->m_behaviours.clear();
-    m_current_level->m_current_progress = 0.0f;
-    m_current_level->m_current_music_progress = 0.0f;
-
     return start_level();
 }
 
@@ -321,24 +250,24 @@ void Game::finish_level_loading(bool loaded) {
 }
 
 void Game::set_paused(bool value) {
-    if (m_current_level == nullptr || m_player == nullptr || !m_player->alive() || m_current_level->m_finished ||
-        m_current_level->m_state == LevelState::LOADING) {
+    if (m_current_level == nullptr || m_player == nullptr || !m_player->alive() || m_current_level->finished() ||
+        m_current_level->state() == LevelState::LOADING || m_current_level->state() == LevelState::DEATH) {
         return;
     }
 
-    m_current_level->m_state = value ? LevelState::PAUSED : LevelState::PLAYING;
+    m_current_level->set_state(value ? LevelState::PAUSED : LevelState::PLAYING);
 }
 
 bool Game::is_paused() const {
-    return m_current_level != nullptr && m_current_level->m_state == LevelState::PAUSED;
+    return m_current_level != nullptr && m_current_level->state() == LevelState::PAUSED;
 }
 
 bool Game::has_finished_level() const {
-    return m_current_level != nullptr && m_current_level->m_finished;
+    return m_current_level != nullptr && m_current_level->finished();
 }
 
 void Game::pause_level() {
-    if (m_current_level == nullptr || m_current_level->m_state != LevelState::PLAYING) return;
+    if (m_current_level == nullptr || m_current_level->state() != LevelState::PLAYING) return;
 
     set_paused(true);
 
@@ -367,33 +296,37 @@ void Game::return_to_menu() {
 }
 
 void Game::finish_level() {
-    if (m_current_level == nullptr || m_player == nullptr || !m_player->alive()) return;
+    if (m_current_level == nullptr || m_current_level->state() != LevelState::PLAYING || m_player == nullptr ||
+        !m_player->alive())
+        return;
 
-    m_settings.set_progress(m_current_level->m_file.parent_path().filename().string(), 100);
-    m_current_level->m_finished = true;
-    m_current_level->m_state = LevelState::PAUSED;
+    m_settings.set_progress(m_current_level->file().parent_path().filename().string(), 100);
+    m_current_level->set_finished(true);
+    m_current_level->set_state(LevelState::PAUSED);
 }
 
 void Game::kill_player() {
-    if (m_current_level == nullptr || m_player == nullptr || !m_player->alive() || m_player->in_god_mode() ||
-        has_finished_level()) {
+    if (m_current_level == nullptr || m_current_level->state() != LevelState::PLAYING || m_player == nullptr ||
+        !m_player->alive() || m_player->in_god_mode() || has_finished_level()) {
         return;
     }
 
-    std::cout << "[game] player died\n";
+    std::cout << "[game] starting player death\n";
+
     m_settings.set_progress(
-        m_current_level->m_file.parent_path().filename().string(), static_cast<int>(m_current_level->m_current_progress)
+        m_current_level->file().parent_path().filename().string(), static_cast<int>(m_current_level->progress())
     );
-    m_player->kill();
-    m_current_level->m_state = LevelState::PAUSED;
+
+    m_player->freeze();
+    m_current_level->begin_death();
     m_game_ui->show_screen(GameScreen::Death);
 }
 
 void Game::set_music_volume(int volume) {
     m_settings.set_volume(volume);
 
-    if (m_current_level != nullptr && m_current_level->m_music_loaded) {
-        SetMusicVolume(m_current_level->music, static_cast<float>(m_settings.volume()) / 100.0f);
+    if (m_current_level != nullptr) {
+        m_current_level->set_music_volume(static_cast<float>(m_settings.volume()) / 100.0f);
     }
 }
 
@@ -413,11 +346,6 @@ void Game::set_free_mode(bool enabled) {
     }
 }
 
-void Game::update_camera_focus(Entity* obj) {
-    const Rectangle bounds = obj->get_bounding_box();
-    m_focus_y = bounds.y + bounds.height / 2.0f;
-}
-
 void Game::simulate() {
     if (m_player == nullptr) return;
 
@@ -425,58 +353,17 @@ void Game::simulate() {
     m_player->movement();
     m_world.step(m_fixed_frametime);
 
-    const Vector2 player_position = m_player->get_position();
-    const Rectangle player_bounds = m_player->get_bounding_box();
-    Entity* closest_platform = nullptr;
-
-    if (!has_finished_level()) {
-        const float player_center_x = player_bounds.x + player_bounds.width / 2.0f;
-        const float player_bottom_y = player_bounds.y + player_bounds.height;
-
-        float closest_platform_distance = CAMERA_PLATFORM_Y_THRESHOLD;
-
-        for (const auto& object : m_world.entities()) {
-            if (object->type() != ObjectType::PLATFORM) continue;
-
-            const Rectangle platform_bounds = object->get_bounding_box();
-            const float platform_min_x = platform_bounds.x - CAMERA_PLATFORM_X_THRESHOLD;
-            const float platform_max_x = platform_bounds.x + platform_bounds.width + CAMERA_PLATFORM_X_THRESHOLD;
-
-            if (player_center_x < platform_min_x || player_center_x > platform_max_x) {
-                continue;
-            }
-
-            const float platform_distance = std::fabs(player_bottom_y - platform_bounds.y);
-
-            if (platform_distance >= closest_platform_distance) {
-                continue;
-            }
-
-            closest_platform = object;
-            closest_platform_distance = platform_distance;
-        }
-
-        if (closest_platform != nullptr) {
-            update_camera_focus(closest_platform);
-        } else {
-            update_camera_focus(m_player.get());
-        }
+    if (m_current_level->state() == LevelState::PLAYING) {
+        m_player->update_camera(m_camera, m_world, has_finished_level());
     }
-
-    // follow the player horizontally and ease toward the selected vertical focus.
-    m_camera.target = {
-        player_position.x + CAMERA_X_LOOK_AHEAD,
-        d_math::lerp(m_camera.target.y, m_focus_y + CAMERA_Y_LOOK_AHEAD, CAMERA_Y_SMOOTHING)
-    };
-
-    m_camera.offset = {static_cast<float>(m_window.width) / 2.0f, static_cast<float>(m_window.height) / 2.0f};
 }
 
 void Game::render() {
     const float frametime = GetFrameTime();
     m_ui->begin_frame();
+    m_camera.center_viewport({static_cast<float>(m_window.width), static_cast<float>(m_window.height)});
 
-    if (m_current_level != nullptr && m_current_level->m_state != LevelState::LOADING) {
+    if (m_current_level != nullptr && m_current_level->state() != LevelState::LOADING) {
         const auto& entities = m_world.entities();
         m_render_objects.assign(entities.begin(), entities.end());
 
@@ -485,7 +372,7 @@ void Game::render() {
             return a->z_index < b->z_index;
         });
 
-        BeginMode2D(m_camera);
+        BeginMode2D(m_camera.transform());
         {
             for (const auto& object : m_render_objects) {
                 Rectangle bounds = object->get_bounding_box();
@@ -498,7 +385,7 @@ void Game::render() {
                     bounds.y += (previous.y - position.y) * (1.0f - m_alpha);
                 }
 
-                object->render(bounds, m_camera);
+                object->render(bounds, m_camera.transform());
             }
         }
         EndMode2D();

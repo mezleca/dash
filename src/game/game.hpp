@@ -3,6 +3,7 @@
 #include "../entity/player.hpp"
 #include "../level/level.hpp"
 #include "../settings/settings.hpp"
+#include "camera.hpp"
 
 #include <imgui-ui/surface.hpp>
 #include <imgui-ui/runtime.hpp>
@@ -48,6 +49,9 @@ public:
     Player* player() const {
         return m_player.get();
     }
+    GameCamera& camera() {
+        return m_camera;
+    }
 
     SettingsManager& settings() {
         return m_settings;
@@ -81,8 +85,6 @@ public:
         return m_free_mode;
     }
 
-    void update_camera_focus(Entity* obj);
-
 private:
     void build_ui();
     void load_all_levels();
@@ -92,11 +94,6 @@ private:
     void render();
 
     void handle_pause_state();
-    void pause_current_level_music();
-    void resume_current_level_music();
-    void unload_current_level_music();
-
-    void update_current_level_progress();
 
     void shutdown();
 
@@ -107,7 +104,7 @@ private:
     ui::Runtime m_runtime;
     std::unique_ptr<ui::Surface> m_ui;
     GameUI* m_game_ui = nullptr;
-    Camera2D m_camera = {};
+    GameCamera m_camera;
 
     DashLevel* m_current_level = nullptr;
     std::vector<std::unique_ptr<DashLevel>> m_levels;
@@ -116,7 +113,6 @@ private:
     float m_fixed_frametime = DEFAULT_FIXED_FRAMETIME;
     float m_alpha = 0.0f;
     float m_accumulator = 0.0f;
-    float m_focus_y = 0.0f; // camera
     bool m_was_paused = false;
     bool m_free_mode = false;
 } inline game;

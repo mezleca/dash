@@ -5,9 +5,8 @@
 
 using namespace ui;
 
-constexpr TransitionSpec DEFAULT_TRANSITION = {0.2F, easing::out_cubic};
-
-MenuOptionLayer::MenuOptionLayer(std::string id) : LayerContainer(std::move(id)) {
+MenuOptionLayer::MenuOptionLayer(std::string id, TransitionSpec transition, bool animate_scale)
+    : LayerContainer(std::move(id)), m_transition(transition), m_animate_scale(animate_scale) {
     set_size({fit(), fit()});
     set_anchor(Anchor::Center);
 
@@ -30,24 +29,29 @@ void MenuOptionLayer::show() {
     cancel_animations();
     set_enabled(true);
     set_visible(true);
-    fade_in(DEFAULT_TRANSITION);
+    fade_in(m_transition);
+
+    if (!m_animate_scale) {
+        return;
+    }
+
     animate()
         .to(StyleAnimationProperty::Scale, ImVec2{0.0F, 0.0F})
         .then()
-        .to(StyleAnimationProperty::Scale, ImVec2{1.0F, 1.0F}, DEFAULT_TRANSITION);
+        .to(StyleAnimationProperty::Scale, ImVec2{1.0F, 1.0F}, m_transition);
 }
 
 void MenuOptionLayer::hide(bool scale) {
     cancel_animations();
     set_enabled(false);
-    fade_out(DEFAULT_TRANSITION);
+    fade_out(m_transition);
 
     auto sequence = animate();
-    if (scale) {
-        sequence.to(StyleAnimationProperty::Scale, ImVec2{0.0F, 0.0F}, DEFAULT_TRANSITION);
+    if (scale && m_animate_scale) {
+        sequence.to(StyleAnimationProperty::Scale, ImVec2{0.0F, 0.0F}, m_transition);
     }
 
-    sequence.delay(DEFAULT_TRANSITION.duration).end([this] { set_visible(false); });
+    sequence.delay(m_transition.duration).end([this] { set_visible(false); });
 }
 
 void MenuOptionLayer::apply_theme_defaults(const Theme& theme) {

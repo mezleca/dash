@@ -5,10 +5,18 @@
 #include "../entity/world/static.hpp"
 #include "../entity/world/finish.hpp"
 #include "../entity/world/trigger.hpp"
+#include "../utils/math.hpp"
 
+#include <imgui-ui/transition.hpp>
+
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <memory>
+
+constexpr float DEATH_ANIMATION_DURATION = 0.3f;
+constexpr float DEATH_ZOOM_MULTIPLIER = 1.12f;
+constexpr float DEATH_ROTATION_OFFSET = 5.0f;
 
 DashLevel::~DashLevel() {
     unload();
@@ -138,11 +146,43 @@ bool DashLevel::save() {
     return !file.fail();
 }
 
+void DashLevel::begin_death() {
+    m_death_elapsed = 0.0f;
+    m_finished_death_animation = false;
+    m_death_start_zoom = game.camera().zoom();
+    m_death_start_rotation = game.camera().rotation();
+    set_state(LevelState::DEATH);
+}
+
+void DashLevel::update_death_animation() {
+    m_death_elapsed = std::min(m_death_elapsed + GetFrameTime(), DEATH_ANIMATION_DURATION);
+    const float progress = ui::easing::out_cubic(m_death_elapsed / DEATH_ANIMATION_DURATION);
+
+    auto& camera = game.camera();
+    camera.set_zoom(d_math::lerp(m_death_start_zoom, m_death_start_zoom * DEATH_ZOOM_MULTIPLIER, progress));
+    camera.set_rotation(d_math::lerp(m_death_start_rotation, m_death_start_rotation + DEATH_ROTATION_OFFSET, progress));
+
+    if (m_death_elapsed < DEATH_ANIMATION_DURATION) return;
+
+    m_finished_death_animation = true;
+    game.player()->kill();
+}
+
 void DashLevel::update() {
-    if (game.player() == nullptr || m_level_end.x <= 0.0f || m_finished) return;
+    update_music();
+
+    if (game.player() == nullptr || m_level_end.x <= 0.0f || m_finished) {
+        return;
+    }
+
+    if (m_state == LevelState::DEATH) {
+        if (!m_finished_death_animation) update_death_animation();
+        return;
+    }
+
+    if (m_state != LevelState::PLAYING) return;
 
     m_current_progress = game.player()->get_position().x / m_level_end.x * 100;
-
     if (m_current_progress >= 100.0f) {
         m_current_progress = 100.0f;
         game.finish_level();
@@ -170,6 +210,7 @@ void DashLevel::update_behaviours(float frametime) {
 }
 
 void DashLevel::unload() {
+    unload_music();
     m_behaviours.clear();
     m_objects.clear();
     m_level_end = {0, 0};
@@ -177,4 +218,85 @@ void DashLevel::unload() {
     m_current_music_progress = 0.0f;
     m_finished = false;
     m_state = LevelState::INVALID;
+}
+
+void DashLevel::reset() {
+    m_behaviours.clear();
+    m_current_progress = 0.0f;
+    m_current_music_progress = 0.0f;
+    m_finished = false;
+    m_finished_death_animation = false;
+    m_death_elapsed = 0.0f;
+    set_music_pitch(1.0f);
+}
+
+bool DashLevel::load_music() {
+    unload_music();
+
+    const auto location = m_file.parent_path() / m_music_file;
+    m_music = LoadMusicStream(location.c_str());
+    m_music_loaded = IsMusicValid(m_music);
+    if (!m_music_loaded) {
+        std::cout << "[level] failed to load music from " << location << '\n';
+        return false;
+    }
+
+    SetMusicPitch(m_music, m_music_pitch);
+    SetMusicVolume(m_music, m_music_volume);
+    SetMusicPan(m_music, m_music_pan);
+    PlayMusicStream(m_music);
+    m_current_music_progress = 0.0f;
+    return true;
+}
+
+void DashLevel::unload_music() {
+    if (!m_music_loaded) return;
+
+    StopMusicStream(m_music);
+    UnloadMusicStream(m_music);
+    m_music = {};
+    m_music_loaded = false;
+    m_current_music_progress = 0.0f;
+}
+
+void DashLevel::set_state(LevelState state) {
+    if (m_state == state) return;
+
+    m_state = state;
+    if (!m_music_loaded) return;
+
+    if (state == LevelState::PLAYING) {
+        ResumeMusicStream(m_music);
+    } else {
+        PauseMusicStream(m_music);
+    }
+}
+
+void DashLevel::update_music() {
+    if (!m_music_loaded || m_state != LevelState::PLAYING) return;
+
+    UpdateMusicStream(m_music);
+    m_current_music_progress = GetMusicTimePlayed(m_music);
+}
+
+void DashLevel::set_music_pitch(float pitch) {
+    if (pitch <= 0.0f) return;
+
+    m_music_pitch = pitch;
+    if (m_music_loaded) SetMusicPitch(m_music, pitch);
+}
+
+void DashLevel::set_music_volume(float volume) {
+    m_music_volume = std::clamp(volume, 0.0f, 1.0f);
+    if (m_music_loaded) SetMusicVolume(m_music, m_music_volume);
+}
+
+void DashLevel::set_music_pan(float pan) {
+    m_music_pan = std::clamp(pan, 0.0f, 1.0f);
+    if (m_music_loaded) SetMusicPan(m_music, m_music_pan);
+}
+
+void DashLevel::set_music_progress(float seconds) {
+    m_current_music_progress = std::max(0.0f, seconds);
+    if (m_music_loaded) SeekMusicStream(m_music, m_current_music_progress);
 }

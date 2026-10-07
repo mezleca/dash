@@ -370,6 +370,7 @@ void Game::simulate() {
     current_player->movement();
     m_world.step(m_fixed_frametime);
 
+    // update camera focus to player
     if (m_current_level->state() == LevelState::PLAYING) {
         current_player->update_camera(m_camera, m_world, has_finished_level());
     }

@@ -10,6 +10,7 @@
 
 #include <imgui-ui/transition.hpp>
 
+#include <raymath.h>
 #include <algorithm>
 #include <fstream>
 #include <iostream>
@@ -23,6 +24,98 @@ DashLevel::DashLevel() = default;
 
 DashLevel::~DashLevel() {
     unload();
+}
+
+void DashLevel::update_edit_mode() {
+    float wheel_y = GetMouseWheelMoveV().y;
+    if (wheel_y != 0.0f) {
+        float new_zoom = Clamp(game.camera().zoom() + wheel_y * 0.25f, 0.1f, 10.0f);
+        game.camera().set_zoom(new_zoom);
+    }
+
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        m_in_drag_mode = true;
+        m_drag_start_pos = game.camera().transform().target;
+        m_drag_start_mouse_pos = GetMousePosition();
+    }
+
+    if (IsMouseButtonReleased(MOUSE_LEFT_BUTTON)) m_in_drag_mode = false;
+    if (!m_in_drag_mode) return;
+
+    Vector2 mouse_delta = Vector2Subtract(m_drag_start_mouse_pos, GetMousePosition());
+    Vector2 world_delta = Vector2Scale(mouse_delta, 1.0f / game.camera().zoom());
+    game.camera().set_target(Vector2Add(m_drag_start_pos, world_delta));
+}
+
+void DashLevel::update() {
+    update_music();
+
+    // update editor move, zoom etc... and early return
+    if (m_state == LevelState::EDITING) {
+        update_edit_mode();
+        return;
+    }
+
+    // early return if we didn't finished the level yet
+    if (m_player == nullptr || m_level_end.x <= 0.0f || m_finished) {
+        return;
+    }
+
+    // update death animation
+    if (m_state == LevelState::DEATH) {
+        if (!m_finished_death_animation) update_death_animation();
+        return;
+    }
+
+    if (m_state != LevelState::PLAYING) return;
+
+    m_current_progress = m_player->get_position().x / m_level_end.x * 100;
+    if (m_current_progress >= 100.0f) {
+        m_current_progress = 100.0f;
+        game.finish_level();
+    }
+}
+
+void DashLevel::add_behaviour(std::unique_ptr<Behaviour> behaviour) {
+    if (behaviour != nullptr) {
+        m_behaviours.push_back(std::move(behaviour));
+    }
+}
+
+void DashLevel::update_behaviours(float frametime) {
+    // behaviours added during an update start on the next frame.
+    const size_t count = m_behaviours.size();
+
+    for (size_t i = 0; i < count; ++i) {
+        if (!m_behaviours[i]->is_finished()) {
+            m_behaviours[i]->update(frametime);
+        }
+    }
+
+    // remove completed behaviours after every callback returns.
+    std::erase_if(m_behaviours, [](const auto& behaviour) { return behaviour->is_finished(); });
+}
+
+void DashLevel::unload() {
+    unload_music();
+    m_behaviours.clear();
+    m_player.reset();
+    m_objects.clear();
+    m_level_end = {0, 0};
+    m_current_progress = 0.0f;
+    m_current_music_progress = 0.0f;
+    m_finished = false;
+    m_state = LevelState::INVALID;
+}
+
+void DashLevel::reset() {
+    m_behaviours.clear();
+    m_current_progress = 0.0f;
+    m_current_music_progress = 0.0f;
+    m_finished = false;
+    m_finished_death_animation = false;
+    m_death_elapsed = 0.0f;
+    set_music_pitch(1.0f);
 }
 
 bool DashLevel::load(std::string_view location) {
@@ -186,69 +279,6 @@ void DashLevel::update_death_animation() {
         m_player->kill();
         StopMusicStream(m_music);
     }
-}
-
-void DashLevel::update() {
-    update_music();
-
-    if (m_player == nullptr || m_level_end.x <= 0.0f || m_finished) {
-        return;
-    }
-
-    if (m_state == LevelState::DEATH) {
-        if (!m_finished_death_animation) update_death_animation();
-        return;
-    }
-
-    if (m_state != LevelState::PLAYING) return;
-
-    m_current_progress = m_player->get_position().x / m_level_end.x * 100;
-    if (m_current_progress >= 100.0f) {
-        m_current_progress = 100.0f;
-        game.finish_level();
-    }
-}
-
-void DashLevel::add_behaviour(std::unique_ptr<Behaviour> behaviour) {
-    if (behaviour != nullptr) {
-        m_behaviours.push_back(std::move(behaviour));
-    }
-}
-
-void DashLevel::update_behaviours(float frametime) {
-    // behaviours added during an update start on the next frame.
-    const size_t count = m_behaviours.size();
-
-    for (size_t i = 0; i < count; ++i) {
-        if (!m_behaviours[i]->is_finished()) {
-            m_behaviours[i]->update(frametime);
-        }
-    }
-
-    // remove completed behaviours after every callback returns.
-    std::erase_if(m_behaviours, [](const auto& behaviour) { return behaviour->is_finished(); });
-}
-
-void DashLevel::unload() {
-    unload_music();
-    m_behaviours.clear();
-    m_player.reset();
-    m_objects.clear();
-    m_level_end = {0, 0};
-    m_current_progress = 0.0f;
-    m_current_music_progress = 0.0f;
-    m_finished = false;
-    m_state = LevelState::INVALID;
-}
-
-void DashLevel::reset() {
-    m_behaviours.clear();
-    m_current_progress = 0.0f;
-    m_current_music_progress = 0.0f;
-    m_finished = false;
-    m_finished_death_animation = false;
-    m_death_elapsed = 0.0f;
-    set_music_pitch(1.0f);
 }
 
 bool DashLevel::load_music(bool autoplay) {

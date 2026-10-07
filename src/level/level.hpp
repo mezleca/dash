@@ -125,6 +125,7 @@ public:
     void set_music_progress(float seconds);
 
     void update();
+    void update_edit_mode();
     void update_behaviours(float frametime);
     void add_behaviour(std::unique_ptr<Behaviour> behaviour);
 
@@ -161,6 +162,10 @@ private:
 
     bool m_finished_death_animation = false;
     float m_death_elapsed = 0.0f;
+
+    bool m_in_drag_mode = false;
+    Vector2 m_drag_start_pos = {};
+    Vector2 m_drag_start_mouse_pos = {};
 
     LevelState m_state = LevelState::INVALID;
 };

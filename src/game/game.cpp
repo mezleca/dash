@@ -43,7 +43,6 @@ void Game::initialize() {
     build_ui();
 
     while (!m_ui->is_done()) {
-        // fixed physics ticks run before frame callbacks and drawing.
         handle_pause_state();
         update_simulation_timestep();
 
@@ -54,10 +53,12 @@ void Game::initialize() {
             m_window.height = GetScreenHeight();
         }
 
-        if (m_current_level != nullptr) m_current_level->update();
-
-        if (m_current_level != nullptr && m_current_level->state() != LevelState::LOADING) {
+        if (m_current_level != nullptr && m_current_level->state() != LevelState::INVALID) {
             const float frametime = GetFrameTime();
+
+            if (m_current_level->state() != LevelState::INVALID) {
+                m_current_level->update();
+            }
 
             // update level behaviours and remove completed ones before entity components run.
             if (m_current_level->state() != LevelState::DEATH) {
@@ -162,11 +163,13 @@ void Game::load_all_levels() {
     }
 }
 
-bool Game::load_level(DashLevel& level) {
+bool Game::load_level(DashLevel& level, bool editor) {
     if (m_current_level != nullptr) {
         std::cout << "[game] failed to load level while another level is active\n";
         return false;
     }
+
+    level.set_state(editor ? LevelState::EDITING : LevelState::PAUSED);
 
     if (level.objects().empty()) {
         std::cout << "[game] loading data from level " << level.name() << "\n";
@@ -178,8 +181,23 @@ bool Game::load_level(DashLevel& level) {
         }
     }
 
+    m_camera.reset();
+
+    if (editor) {
+        m_camera.set_target(level.player_start());
+    } else {
+        level.spawn_player(m_world, m_settings.godmode(), m_free_mode);
+        level.player()->update_camera(m_camera, m_world, false, true);
+        level.set_music_volume(static_cast<float>(m_settings.volume()) / 100.0f);
+
+        if (!level.load_music(false)) {
+            level.unload();
+            m_camera.set_target({});
+            return false;
+        }
+    }
+
     m_current_level = &level;
-    m_current_level->set_state(LevelState::LOADING);
     std::cout << "loaded " << level.file() << " successfully\n";
 
     return true;
@@ -191,23 +209,26 @@ bool Game::start_level() {
         return false;
     }
 
-    if (m_player == nullptr) {
-        m_player = std::make_unique<Player>(m_world, m_settings.godmode());
-    } else {
-        m_player->reset();
-        m_player->set_god_mode(m_settings.godmode());
-    }
-
-    m_player->set_free_mode(m_free_mode);
-    m_camera.set_zoom(1.2f);
-    m_camera.set_rotation(0.0f);
-
-    const Vector2 start = m_current_level->player_start();
-    m_player->set_position(start.x, start.y);
+    m_camera.reset();
+    m_accumulator = 0.0f;
+    m_alpha = 0.0f;
 
     m_current_level->reset();
+
+    // configure editor
+    if (m_current_level->state() == LevelState::EDITING) {
+        // TOFIX: use latest editing position instead of player start
+        m_camera.set_target(m_current_level->player_start());
+        m_was_paused = false;
+        m_game_ui->show_screen(GameScreen::Editor);
+        return true;
+    }
+
+    // configure gameplayer
+    m_current_level->spawn_player(m_world, m_settings.godmode(), m_free_mode);
+    player()->update_camera(m_camera, m_world, false, true);
     m_current_level->set_music_volume(static_cast<float>(m_settings.volume()) / 100.0f);
-    if (!m_current_level->load_music()) return false;
+    m_current_level->play_music();
 
     m_settings.update_attempts(m_current_level->file().parent_path().filename().string());
 
@@ -225,8 +246,12 @@ void Game::unload_current_level() {
     }
 
     m_current_level->unload();
-    m_player.reset();
 
+    m_camera.reset();
+    m_camera.set_target({});
+    m_accumulator = 0.0f;
+    m_alpha = 0.0f;
+    m_render_objects.clear();
     m_was_paused = false;
     m_current_level = nullptr;
     m_game_ui->show_screen(GameScreen::Menu);
@@ -250,8 +275,8 @@ void Game::finish_level_loading(bool loaded) {
 }
 
 void Game::set_paused(bool value) {
-    if (m_current_level == nullptr || m_player == nullptr || !m_player->alive() || m_current_level->finished() ||
-        m_current_level->state() == LevelState::LOADING || m_current_level->state() == LevelState::DEATH) {
+    if (m_current_level == nullptr || player() == nullptr || !player()->alive() || m_current_level->finished() ||
+        m_current_level->state() == LevelState::EDITING || m_current_level->state() == LevelState::DEATH) {
         return;
     }
 
@@ -270,20 +295,14 @@ void Game::pause_level() {
     if (m_current_level == nullptr || m_current_level->state() != LevelState::PLAYING) return;
 
     set_paused(true);
-
-    if (is_paused()) {
-        m_game_ui->show_screen(GameScreen::Pause);
-    }
+    m_game_ui->show_screen(GameScreen::Pause);
 }
 
 void Game::resume_level() {
     if (!is_paused()) return;
 
     set_paused(false);
-
-    if (!is_paused()) {
-        m_game_ui->show_screen(GameScreen::Gameplay);
-    }
+    m_game_ui->show_screen(GameScreen::Gameplay);
 }
 
 void Game::return_to_menu() {
@@ -296,8 +315,8 @@ void Game::return_to_menu() {
 }
 
 void Game::finish_level() {
-    if (m_current_level == nullptr || m_current_level->state() != LevelState::PLAYING || m_player == nullptr ||
-        !m_player->alive())
+    if (m_current_level == nullptr || m_current_level->state() != LevelState::PLAYING || player() == nullptr ||
+        !player()->alive())
         return;
 
     m_settings.set_progress(m_current_level->file().parent_path().filename().string(), 100);
@@ -306,8 +325,8 @@ void Game::finish_level() {
 }
 
 void Game::kill_player() {
-    if (m_current_level == nullptr || m_current_level->state() != LevelState::PLAYING || m_player == nullptr ||
-        !m_player->alive() || m_player->in_god_mode() || has_finished_level()) {
+    if (m_current_level == nullptr || m_current_level->state() != LevelState::PLAYING || player() == nullptr ||
+        !player()->alive() || player()->in_god_mode() || has_finished_level()) {
         return;
     }
 
@@ -317,14 +336,13 @@ void Game::kill_player() {
         m_current_level->file().parent_path().filename().string(), static_cast<int>(m_current_level->progress())
     );
 
-    m_player->freeze();
+    player()->freeze();
     m_current_level->begin_death();
     m_game_ui->show_screen(GameScreen::Death);
 }
 
 void Game::set_music_volume(int volume) {
     m_settings.set_volume(volume);
-
     if (m_current_level != nullptr) {
         m_current_level->set_music_volume(static_cast<float>(m_settings.volume()) / 100.0f);
     }
@@ -332,29 +350,28 @@ void Game::set_music_volume(int volume) {
 
 void Game::set_godmode(bool enabled) {
     m_settings.set_godmode(enabled);
-
-    if (m_player != nullptr) {
-        m_player->set_god_mode(enabled);
+    if (player() != nullptr) {
+        player()->set_god_mode(enabled);
     }
 }
 
 void Game::set_free_mode(bool enabled) {
     m_free_mode = enabled;
-
-    if (m_player != nullptr) {
-        m_player->set_free_mode(enabled);
+    if (player() != nullptr) {
+        player()->set_free_mode(enabled);
     }
 }
 
 void Game::simulate() {
-    if (m_player == nullptr) return;
+    Player* current_player = player();
+    if (current_player == nullptr) return;
 
     // player movement writes velocity before box2d advances the world.
-    m_player->movement();
+    current_player->movement();
     m_world.step(m_fixed_frametime);
 
     if (m_current_level->state() == LevelState::PLAYING) {
-        m_player->update_camera(m_camera, m_world, has_finished_level());
+        current_player->update_camera(m_camera, m_world, has_finished_level());
     }
 }
 
@@ -363,7 +380,7 @@ void Game::render() {
     m_ui->begin_frame();
     m_camera.center_viewport({static_cast<float>(m_window.width), static_cast<float>(m_window.height)});
 
-    if (m_current_level != nullptr && m_current_level->state() != LevelState::LOADING) {
+    if (m_current_level != nullptr && m_current_level->loaded()) {
         const auto& entities = m_world.entities();
         m_render_objects.assign(entities.begin(), entities.end());
 
@@ -378,7 +395,7 @@ void Game::render() {
                 Rectangle bounds = object->get_bounding_box();
 
                 // render the player between its positions before and after the last physics tick.
-                if (object == m_player.get()) {
+                if (object == player()) {
                     const Vector2 position = object->get_position();
                     const Vector2 previous = object->get_previous_position();
                     bounds.x += (previous.x - position.x) * (1.0f - m_alpha);

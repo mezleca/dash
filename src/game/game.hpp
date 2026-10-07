@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <iostream>
 #include <vector>
 
 const std::filesystem::path RESOURCES_LOCATION = std::filesystem::path(GetApplicationDirectory()) / "resources";
@@ -47,8 +48,9 @@ public:
     }
 
     Player* player() const {
-        return m_player.get();
+        return m_current_level != nullptr ? m_current_level->player() : nullptr;
     }
+
     GameCamera& camera() {
         return m_camera;
     }
@@ -65,7 +67,12 @@ public:
     bool is_paused() const;
     bool has_finished_level() const;
 
-    bool load_level(DashLevel& level);
+    LevelState level_state() {
+        if (m_current_level == nullptr) return LevelState::INVALID;
+        return m_current_level->state();
+    }
+
+    bool load_level(DashLevel& level, bool editor = false);
     bool start_level();
     void unload_current_level();
     bool restart_current_level();
@@ -81,6 +88,7 @@ public:
     void set_music_volume(int volume);
     void set_godmode(bool enabled);
     void set_free_mode(bool enabled);
+
     bool free_mode() const {
         return m_free_mode;
     }
@@ -100,7 +108,6 @@ private:
     World m_world;
     SettingsManager m_settings{std::filesystem::path(GetApplicationDirectory()) / "settings.json"};
     GameWindow m_window;
-    std::unique_ptr<Player> m_player;
     ui::Runtime m_runtime;
     std::unique_ptr<ui::Surface> m_ui;
     GameUI* m_game_ui = nullptr;

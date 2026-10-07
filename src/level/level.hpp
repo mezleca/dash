@@ -11,15 +11,17 @@
 
 enum class LevelState : int8_t {
     INVALID = -1, // corrupted, not loaded, whatever
-    LOADING = 0,
     PLAYING,
+    EDITING,
     PAUSED,
     DEATH
 };
 
+class Player;
+
 class DashLevel {
 public:
-    DashLevel() = default;
+    DashLevel();
     ~DashLevel();
     DashLevel(const DashLevel&) = delete;
     DashLevel& operator=(const DashLevel&) = delete;
@@ -52,6 +54,10 @@ public:
         return m_state;
     }
 
+    bool loaded() const {
+        return m_fully_loaded;
+    }
+
     bool finished() const {
         return m_finished;
     }
@@ -64,6 +70,10 @@ public:
         return m_player_start;
     }
 
+    Player* player() const {
+        return m_player.get();
+    }
+
     float progress() const {
         return m_current_progress;
     }
@@ -71,14 +81,6 @@ public:
     const std::vector<std::unique_ptr<Entity>>& objects() const {
         return m_objects;
     }
-
-    bool save();
-    bool load(std::string_view location);
-
-    bool load_objects(World& world);
-    void unload();
-    void reset();
-    void begin_death();
 
     const Music& music() const {
         return m_music;
@@ -104,7 +106,18 @@ public:
         return m_current_music_progress;
     }
 
-    bool load_music();
+    bool save();
+    bool load(std::string_view location);
+
+    bool load_objects(World& world);
+    void unload();
+    void reset();
+    void begin_death();
+
+    void spawn_player(World& world, bool god_mode, bool free_mode);
+
+    bool load_music(bool autoplay = true);
+    void play_music();
     void unload_music();
     void set_music_pitch(float pitch);
     void set_music_volume(float volume);
@@ -121,6 +134,7 @@ private:
 
     std::vector<std::unique_ptr<Entity>> m_objects;
     std::vector<std::unique_ptr<Behaviour>> m_behaviours;
+    std::unique_ptr<Player> m_player;
 
     // metadata
     nlohmann::json m_temp_objects; // will be parsed / initialized on level load
@@ -143,6 +157,7 @@ private:
     bool m_music_loaded = false;
 
     bool m_finished = false;
+    bool m_fully_loaded = false;
 
     bool m_finished_death_animation = false;
     float m_death_elapsed = 0.0f;

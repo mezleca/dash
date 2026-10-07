@@ -24,6 +24,7 @@ public:
     GameUI();
 
     void show_screen(GameScreen screen);
+    void show_levels(bool editor = false);
     void hide_screen(GameScreen screen);
     void hide_all_screens();
 
@@ -33,14 +34,10 @@ protected:
     void event(ui::UiEvent& event) override;
 
 private:
-    void build_menu();
-    void build_option_panels();
-    void build_gameplay_panels();
-
     void focus_current();
-
-    void play_level(DashLevel& level);
+    void play_level(DashLevel& level, bool editor = false);
 
     std::unordered_map<GameScreen, ui::Container*> m_screens;
     std::vector<GameScreen> m_open;
+    bool m_edit_selected_level = false;
 };

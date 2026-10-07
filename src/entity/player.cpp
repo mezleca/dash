@@ -60,7 +60,7 @@ void Player::update_camera_focus(const Entity& entity) {
     m_camera_focus_y = bounds.y + bounds.height / 2.0f;
 }
 
-void Player::update_camera(GameCamera& camera, const World& world, bool level_finished) {
+void Player::update_camera(GameCamera& camera, const World& world, bool level_finished, bool snap) {
     if (!level_finished) {
         const Rectangle bounds = get_bounding_box();
         const float center_x = bounds.x + bounds.width / 2.0f;
@@ -87,7 +87,9 @@ void Player::update_camera(GameCamera& camera, const World& world, bool level_fi
     }
 
     const Vector2 position = get_position();
-    camera.set_target({position.x + CAMERA_LOOK_AHEAD.x, m_camera_focus_y + CAMERA_LOOK_AHEAD.y}, {1.0f, CAMERA_Y_SMOOTHING});
+    camera.set_target(
+        {position.x + CAMERA_LOOK_AHEAD.x, m_camera_focus_y + CAMERA_LOOK_AHEAD.y}, {1.0f, snap ? 1.0f : CAMERA_Y_SMOOTHING}
+    );
 }
 
 void Player::kill() {

@@ -34,7 +34,7 @@ public:
     }
 
     void movement();
-    void update_camera(GameCamera& camera, const World& world, bool level_finished);
+    void update_camera(GameCamera& camera, const World& world, bool level_finished, bool snap = false);
 
     void update_player_type(PlayerType player_type);
 

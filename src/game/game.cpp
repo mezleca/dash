@@ -4,6 +4,7 @@
 #include <imgui-ui/runtime.hpp>
 #include <imgui-ui/diagnostics/debugger.hpp>
 #include <imgui-ui/backends/raylib/backend.hpp>
+#include <imgui-ui/backends/opengl/texture-loader.hpp>
 #include <imgui-ui/layout/container.hpp>
 #include <algorithm>
 #include <filesystem>
@@ -36,7 +37,10 @@ void Game::initialize() {
     SurfaceConfig ui_config;
     ui_config.backend = std::move(backend);
     ui_config.enable_debugger = true;
-    m_ui = std::make_unique<Surface>(m_runtime, std::move(ui_config));
+
+    Runtime runtime({.texture_loader = std::make_unique<OpenGLTextureLoader>()});
+
+    m_ui = std::make_unique<Surface>(runtime, std::move(ui_config));
 
     // read metadata before the selector creates cards. game objects are loaded when a card is opened.
     load_all_levels();
@@ -47,6 +51,7 @@ void Game::initialize() {
         update_simulation_timestep();
 
         m_ui->process_events();
+        m_pointer_over_ui = m_game_ui->pointer_over_ui();
 
         if (IsWindowResized()) {
             m_window.width = GetScreenWidth();
@@ -252,6 +257,7 @@ void Game::unload_current_level() {
     m_accumulator = 0.0f;
     m_alpha = 0.0f;
     m_render_objects.clear();
+    m_pointer_over_ui = false;
     m_was_paused = false;
     m_current_level = nullptr;
     m_game_ui->show_screen(GameScreen::Menu);

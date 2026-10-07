@@ -2,6 +2,7 @@
 #include "../game.hpp"
 #include "overlays/option-layer.hpp"
 #include "overlays/exit.hpp"
+#include "overlays/editor.hpp"
 #include "overlays/level-selector.hpp"
 #include "overlays/option-layer.hpp"
 #include "overlays/settings.hpp"
@@ -80,12 +81,7 @@ GameUI::GameUI() : LayerContainer("game-ui") {
         gameplay.set_enabled(false);
         gameplay.set_visible(false);
 
-        auto& editor = add<LayerContainer>("editor");
-        m_screens.emplace(GameScreen::Editor, &editor);
-        editor.set_size({grow(), grow()});
-        editor.set_input_mode(InputMode::None);
-        editor.set_enabled(false);
-        editor.set_visible(false);
+        m_screens.emplace(GameScreen::Editor, &add<EditorLayer>());
 
         auto& pause = add<MenuOptionLayer>("pause");
         m_screens.emplace(GameScreen::Pause, &pause);
@@ -134,6 +130,22 @@ GameUI::GameUI() : LayerContainer("game-ui") {
 
 GameScreen GameUI::focused() const {
     return m_open.empty() ? GameScreen::Gameplay : m_open.back();
+}
+
+bool GameUI::pointer_over_ui() const {
+    for (const auto& [screen, node] : m_screens) {
+        if (!node->visible() || !node->enabled() || screen == GameScreen::Gameplay) continue;
+
+        if (screen == GameScreen::Editor) {
+            for (const auto& child : node->children()) {
+                if (child->visible() && child->enabled() && child->subtree_input_state().hovered) return true;
+            }
+        } else if (node->subtree_input_state().hovered) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void GameUI::focus_current() {

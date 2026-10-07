@@ -29,6 +29,7 @@ public:
     void hide_all_screens();
 
     GameScreen focused() const;
+    bool pointer_over_ui() const;
 
 protected:
     void event(ui::UiEvent& event) override;

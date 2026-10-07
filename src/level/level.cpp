@@ -27,6 +27,11 @@ DashLevel::~DashLevel() {
 }
 
 void DashLevel::update_edit_mode() {
+    if (game.pointer_over_ui()) {
+        m_in_drag_mode = false;
+        return;
+    }
+
     float wheel_y = GetMouseWheelMoveV().y;
     if (wheel_y != 0.0f) {
         float new_zoom = Clamp(game.camera().zoom() + wheel_y * 0.25f, 0.1f, 10.0f);

@@ -51,6 +51,10 @@ public:
         return m_current_level != nullptr ? m_current_level->player() : nullptr;
     }
 
+    const DashLevel* current_level() const {
+        return m_current_level;
+    }
+
     GameCamera& camera() {
         return m_camera;
     }
@@ -93,6 +97,10 @@ public:
         return m_free_mode;
     }
 
+    bool pointer_over_ui() const {
+        return m_pointer_over_ui;
+    }
+
 private:
     void build_ui();
     void load_all_levels();
@@ -108,7 +116,6 @@ private:
     World m_world;
     SettingsManager m_settings{std::filesystem::path(GetApplicationDirectory()) / "settings.json"};
     GameWindow m_window;
-    ui::Runtime m_runtime;
     std::unique_ptr<ui::Surface> m_ui;
     GameUI* m_game_ui = nullptr;
     GameCamera m_camera;
@@ -122,4 +129,5 @@ private:
     float m_accumulator = 0.0f;
     bool m_was_paused = false;
     bool m_free_mode = false;
+    bool m_pointer_over_ui = false;
 } inline game;

@@ -1,6 +1,7 @@
-cmake_minimum_required(VERSION 3.16)
-
+cmake_minimum_required(VERSION 3.25)
 project(dash VERSION 0.0.1 LANGUAGES CXX)
+
+include(FetchContent)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -24,11 +25,18 @@ set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_GAMES    OFF CACHE BOOL "" FORCE)
 
 set(IMGUI_UI_BUILD_RAYLIB ON)
-set(IMGUI_UI_BUILD_TESTS ON)
+set(IMGUI_UI_ENABLE_SANITIZERS OFF)
+set(IMGUI_UI_BUILD_TESTS OFF)
 
 find_package(OpenGL REQUIRED)
 
-add_subdirectory(vendor/imgui-ui)
+FetchContent_Declare(
+    imgui-ui
+    GIT_REPOSITORY https://github.com/mezleca/imgui-ui
+    GIT_TAG 9008b8273f82a237c76c7aead5455d306cafde36
+)
+FetchContent_MakeAvailable(imgui-ui)
+
 add_subdirectory(vendor/box2d)
 add_subdirectory(vendor/json)
 
@@ -50,7 +58,12 @@ if(DASH_ENABLE_WARNINGS)
         )
     endif()
 
-    set_source_files_properties(${SOURCES} PROPERTIES COMPILE_OPTIONS "${DASH_WARNING_FLAGS}")
+    set_source_files_properties(
+        ${SOURCES}
+        PROPERTIES
+        COMPILE_OPTIONS
+        "${DASH_WARNING_FLAGS}"
+    )
 endif()
 
 add_executable(${PROJECT_NAME}

@@ -14,7 +14,7 @@
 #include <iostream>
 #include <memory>
 
-constexpr float DEATH_ANIMATION_DURATION = 0.3f;
+constexpr float DEATH_ANIMATION_DURATION = 1.0f; // in seconds
 constexpr float DEATH_ZOOM_MULTIPLIER = 1.12f;
 constexpr float DEATH_ROTATION_OFFSET = 5.0f;
 
@@ -149,23 +149,25 @@ bool DashLevel::save() {
 void DashLevel::begin_death() {
     m_death_elapsed = 0.0f;
     m_finished_death_animation = false;
-    m_death_start_zoom = game.camera().zoom();
-    m_death_start_rotation = game.camera().rotation();
+    game.camera().reset();
     set_state(LevelState::DEATH);
 }
 
 void DashLevel::update_death_animation() {
     m_death_elapsed = std::min(m_death_elapsed + GetFrameTime(), DEATH_ANIMATION_DURATION);
-    const float progress = ui::easing::out_cubic(m_death_elapsed / DEATH_ANIMATION_DURATION);
+    const float progress = ui::easing::out_quad(m_death_elapsed / DEATH_ANIMATION_DURATION);
 
     auto& camera = game.camera();
-    camera.set_zoom(d_math::lerp(m_death_start_zoom, m_death_start_zoom * DEATH_ZOOM_MULTIPLIER, progress));
-    camera.set_rotation(d_math::lerp(m_death_start_rotation, m_death_start_rotation + DEATH_ROTATION_OFFSET, progress));
+    camera.set_zoom(d_math::lerp(DEFAULT_CAMERA_ZOOM, DEFAULT_CAMERA_ZOOM * DEATH_ZOOM_MULTIPLIER, progress));
+    camera.set_rotation(d_math::lerp(DEFAULT_CAMERA_ROTATION, DEFAULT_CAMERA_ROTATION + DEATH_ROTATION_OFFSET, progress));
+    set_music_pitch(d_math::lerp(1.0f, 0.0f, progress));
+    set_music_volume(d_math::lerp(1.0f, 0.0f, progress));
 
-    if (m_death_elapsed < DEATH_ANIMATION_DURATION) return;
-
-    m_finished_death_animation = true;
-    game.player()->kill();
+    if (m_death_elapsed >= DEATH_ANIMATION_DURATION && !m_finished_death_animation) {
+        m_finished_death_animation = true;
+        game.player()->kill();
+        StopMusicStream(m_music);
+    }
 }
 
 void DashLevel::update() {
@@ -257,19 +259,6 @@ void DashLevel::unload_music() {
     m_music = {};
     m_music_loaded = false;
     m_current_music_progress = 0.0f;
-}
-
-void DashLevel::set_state(LevelState state) {
-    if (m_state == state) return;
-
-    m_state = state;
-    if (!m_music_loaded) return;
-
-    if (state == LevelState::PLAYING) {
-        ResumeMusicStream(m_music);
-    } else {
-        PauseMusicStream(m_music);
-    }
 }
 
 void DashLevel::update_music() {

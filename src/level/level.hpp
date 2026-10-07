@@ -34,14 +34,28 @@ public:
         return m_file;
     }
 
+    void set_state(LevelState state) {
+        m_state = state;
+
+        if (!m_music_loaded) {
+            return;
+        }
+
+        if (state == LevelState::PLAYING || state == LevelState::DEATH) {
+            ResumeMusicStream(m_music);
+        } else {
+            PauseMusicStream(m_music);
+        }
+    }
+
     LevelState state() const {
         return m_state;
     }
-    void set_state(LevelState state);
 
     bool finished() const {
         return m_finished;
     }
+
     void set_finished(bool value) {
         m_finished = value;
     }
@@ -132,8 +146,6 @@ private:
 
     bool m_finished_death_animation = false;
     float m_death_elapsed = 0.0f;
-    float m_death_start_zoom = 1.2f;
-    float m_death_start_rotation = 0.0f;
 
     LevelState m_state = LevelState::INVALID;
 };

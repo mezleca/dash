@@ -88,6 +88,7 @@ def configure(build_type: str) -> int:
     cmd = [
         "cmake",
         "-Wno-dev",
+        "-Wold-style-cast",
         "-G",
         "Ninja",
         "-B",

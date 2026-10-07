@@ -4,6 +4,7 @@
 #include "../../game.hpp"
 
 #include <imgui-ui/widgets/text.hpp>
+#include <iostream>
 
 using namespace ui;
 
@@ -27,7 +28,10 @@ LevelSelectorLayer::LevelSelectorLayer(std::string id, std::function<void(DashLe
         auto& card = carousel.add<LevelCard>(*level);
 
         if (on_select) {
-            card.on_click([on_select, level = level.get()] { on_select(*level); });
+            card.on_click([on_select, level = level.get()] {
+                std::cout << "clicked" << "\n";
+                on_select(*level);
+            });
         }
     }
 }

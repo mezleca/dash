@@ -124,7 +124,6 @@ void Player::movement() {
     if (m_dead || m_frozen) return;
 
     bool is_pressing_jump = IsKeyDown(KEY_SPACE);
-
     bool is_birb = m_player_type == PlayerType::BIRD;
 
     float jump_force = JUMP_FORCE;

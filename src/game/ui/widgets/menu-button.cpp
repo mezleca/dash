@@ -11,7 +11,7 @@ MenuButton::MenuButton(std::string text) : ButtonWidget(std::move(text)) {}
 void MenuButton::apply_theme_defaults(const Theme& theme) {
     ButtonWidget::apply_theme_defaults(theme);
 
-    set_font(surface().get_primary_font(28));
+    set_font(surface().get_primary_font(), 28);
     TransitionSpec transition = {0.2F, easing::out_cubic};
 
     configure_all_styles([&](Style& style) {

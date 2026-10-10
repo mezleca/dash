@@ -1,5 +1,5 @@
 #include "level-card.hpp"
-#include "../../../level/level.hpp"
+#include "game/level/level.hpp"
 
 #include <imgui-ui/surface.hpp>
 
@@ -9,7 +9,7 @@ LevelCard::LevelCard(const DashLevel& level) : ButtonWidget(level.name(), {perce
 
 void LevelCard::apply_theme_defaults(const Theme& theme) {
     ButtonWidget::apply_theme_defaults(theme);
-    set_font(surface().get_primary_font(48));
+    set_font(surface().get_primary_font(), 48);
 
     configure_all_styles([](Style& style) {
         style.background_color(rgb(36, 36, 36));

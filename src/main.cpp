@@ -1,10 +1,7 @@
-#include "game/game.hpp"
-
-#include <cstdlib>
-#include <ctime>
+#include "game/dash.hpp"
 
 int main() {
-    std::srand(static_cast<unsigned int>(std::time(nullptr)));
-    game.initialize();
+    Dash dash;
+    dash.run();
     return 0;
 }

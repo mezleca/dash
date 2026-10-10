@@ -2,19 +2,21 @@
 
 Platformer Game inspired by Geometry Dash.
 
-## TODO
-### CORE
+# TODO
+## CORE
 - [x] basic gameplay loop (cube / bird mode, songs, pause, etc...)
 - [x] integrate box2d for physics
 - [x] integrate imgui-ui for game interface
-- [x] game levels
-    - [x] serialize / deserialize using json
-	- [x] data (objects, etc...)
-	- [x] metadata: name
-	- [ ] metadata: description
-	- [ ] metadata: cover
 - [x] sort game objects by z-index before rendering
+- [x] serialization
 
+## GAME
+- [ ] levels
+    - [x] data (objects, etc...)
+    - [x] metadata: name
+    - [ ] metadata: description
+    - [ ] metadata: cover
+    
 ### GAMEPLAY
 - [x] object: spike
 - [x] object: platform
@@ -28,16 +30,19 @@ Platformer Game inspired by Geometry Dash.
 - [ ] behavior: invert screen
 - [ ] behavior: flip screen
 - [ ] behavior: camera control (offset, zoom)
+- [x] level: progress (updated on death / finish)
 - [ ] level: easy (TBD)
 - [ ] level: normal (Bye Bye Sometimes)
 
 ### SETTINGS
 - [ ] custom sprite (fixed size supporting pngs, svgs and gifs)
-- [ ] music volume
-- [ ] serialize / deserialize settings data
+- [x] god mode
+- [x] free mode (explorer mode)
+- [x] music volue
+- [x] serialization
 
 ### EDITOR
-  - [ ] add/remove gameobjects
-  - [ ] move gameobjects using 2d gizmo
-  - [ ] interface to change gameobject properties
-  - [ ] interface to change level properties
+- [ ] add/remove gameobjects
+- [ ] move gameobjects using 2d gizmo
+- [ ] interface to change gameobject properties
+- [ ] interface to change level properties

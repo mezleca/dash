@@ -1,14 +1,13 @@
 #include "level-selector.hpp"
 #include "../widgets/level-card.hpp"
 #include "../widgets/carousel-container.hpp"
-#include "../../game.hpp"
+#include "game/dash.hpp"
 
 #include <imgui-ui/widgets/text.hpp>
-#include <iostream>
 
 using namespace ui;
 
-LevelSelectorLayer::LevelSelectorLayer(std::string id, std::function<void(DashLevel&)> on_select)
+LevelSelectorLayer::LevelSelectorLayer(Dash& game, std::string id, std::function<void(DashLevel&)> on_select)
     : MenuOptionLayer("level-selector-" + id) {
     set_size({grow(), grow()});
     configure_all_styles([](Style& style) {
@@ -18,20 +17,19 @@ LevelSelectorLayer::LevelSelectorLayer(std::string id, std::function<void(DashLe
         );
     });
 
-    if (game.levels().empty()) {
+    auto& levels = game.levels();
+    if (levels.empty()) {
         add<TextWidget>("no levels found");
         return;
     }
 
     auto& carousel = add<CarouselContainer>("levels");
-    for (const auto& level : game.levels()) {
-        auto& card = carousel.add<LevelCard>(*level);
+    for (auto& entry : levels) {
+        DashLevel& level = *entry.second;
+        auto& card = carousel.add<LevelCard>(level);
 
         if (on_select) {
-            card.on_click([on_select, level = level.get()] {
-                std::cout << "clicked" << "\n";
-                on_select(*level);
-            });
+            card.on_click([on_select, selected = &level] { on_select(*selected); });
         }
     }
 }

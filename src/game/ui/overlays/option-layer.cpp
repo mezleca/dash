@@ -56,5 +56,5 @@ void MenuOptionLayer::hide(bool scale) {
 
 void MenuOptionLayer::apply_theme_defaults(const Theme& theme) {
     LayerContainer::apply_theme_defaults(theme);
-    set_font(surface().get_primary_font(28));
+    set_font(surface().get_primary_font(), 28);
 }

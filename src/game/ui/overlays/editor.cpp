@@ -1,15 +1,17 @@
 #include "editor.hpp"
-#include "../../game.hpp"
+#include "game/dash.hpp"
 
 #include <imgui-ui/surface.hpp>
+#include <imgui-ui/runtime.hpp>
 #include <imgui-ui/widgets/text.hpp>
 #include <imgui-ui/widgets/image.hpp>
 
+#include <utility>
+
 using namespace ui;
 
-DebugInfo::DebugInfo() : LayerContainer("editor-debug-info") {
+DebugInfo::DebugInfo(Dash& game) : LayerContainer("editor-debug-info"), m_game(game) {
     set_size({fit(), fit()});
-    set_anchor(Anchor::TopLeft);
     set_direction(StackDirection::Vertical);
     set_spacing(4.0F);
     set_input_mode(InputMode::Target);
@@ -30,8 +32,8 @@ DebugInfo::DebugInfo() : LayerContainer("editor-debug-info") {
 }
 
 void DebugInfo::on_update(float frametime) {
-    const auto& camera = game.camera().transform();
-    const DashLevel* level = game.current_level();
+    const auto& camera = m_game.camera().view();
+    const DashLevel* level = m_game.current_level();
     const std::size_t object_count = level != nullptr ? level->objects().size() : 0;
 
     m_camera_position->set_text(TextFormat("Camera (world): %.1f, %.1f", camera.target.x, camera.target.y));
@@ -41,7 +43,7 @@ void DebugInfo::on_update(float frametime) {
     m_frame_stats->set_text(TextFormat("FPS: %d | Frame: %.2f ms", GetFPS(), frametime * 1000.0F));
 }
 
-EditorPanel::EditorPanel() : LayerContainer("editor-panel") {
+EditorPanel::EditorPanel(Dash& game) : LayerContainer("editor-panel") {
     set_size({fit(), fit()});
     set_anchor(Anchor::BottomRight);
 
@@ -102,7 +104,7 @@ void EditorPanel::set_compact(bool compact) {
     });
 }
 
-EditorLayer::EditorLayer() : LayerContainer("editor") {
+EditorLayer::EditorLayer(Dash& game, ui::InputCallback on_key_press) : LayerContainer("editor") {
     set_size({grow(), grow()});
     set_input_mode(InputMode::None);
     set_enabled(false);
@@ -114,11 +116,11 @@ EditorLayer::EditorLayer() : LayerContainer("editor") {
         style.padding({0.0F, 0.0F});
     });
 
-    add<DebugInfo>();
-    add<EditorPanel>();
+    add<DebugInfo>(game);
+    add<EditorPanel>(game).on_key_press(std::move(on_key_press));
 }
 
 void EditorLayer::apply_theme_defaults(const Theme& theme) {
     LayerContainer::apply_theme_defaults(theme);
-    set_font(surface().get_primary_font(20));
+    set_font(surface().get_primary_font(), 20);
 }

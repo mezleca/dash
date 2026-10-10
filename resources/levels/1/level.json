@@ -3,215 +3,35 @@
     "music_file": "audio.mp3",
     "player_start": {"x": 32, "y": 0},
     "objects": [
-        {
-            "type": 4,
-            "visible": true,
-            "position": {"x": 0.0, "y": -128},
-            "shape": {"type": "polygon", "vertices": [{"x": 0, "y": 0}, {"x": 128, "y": 0}, {"x": 128, "y": 128}, {"x": 0, "y": 128}], "radius": 0.0},
-            "components": [{"component": "background_sprite", "type": 0, "texture": "1.png", "fill_viewport": true}]
-        },
-        {
-            "type": 1,
-            "visible": true,
-            "position": {"x": 0.0, "y": 64.0},
-            "shape": {"type": "polygon", "vertices": [{"x": 0, "y": 0}, {"x": 4096.0, "y": 0}, {"x": 4096.0, "y": 16.0}, {"x": 0, "y": 16.0}], "radius": 0.0},
-            "components": [{"component": "sprite", "type": 0, "texture": "", "tint": {"r": 0, "g": 120, "b": 255, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 512.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 576.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 640.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 1024.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 1088.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 1,
-            "visible": true,
-            "position": {"x": 900.0, "y": -64},
-            "shape": {"type": "polygon", "vertices": [{"x": 0, "y": 0}, {"x": 128.0, "y": 0}, {"x": 128.0, "y": 20.0}, {"x": 0, "y": 20.0}], "radius": 0.0},
-            "components": [{"component": "sprite", "type": 0, "texture": "", "tint": {"r": 0, "g": 120, "b": 255, "a": 255}}]
-        },
-        {
-            "type": 1,
-            "visible": true,
-            "position": {"x": 1000.0, "y": -150},
-            "shape": {"type": "polygon", "vertices": [{"x": 0, "y": 0}, {"x": 512, "y": 0}, {"x": 512, "y": 20.0}, {"x": 0, "y": 20.0}], "radius": 0.0},
-            "components": [{"component": "sprite", "type": 0, "texture": "", "tint": {"r": 0, "g": 120, "b": 255, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 1500.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 1564.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 1628.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 1692.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 1756.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 1820.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 1884.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 1948.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 2012.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 2076.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 2140.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 2204.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 2268.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 2332.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 2396.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 2460.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 2524.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 2588.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 2652.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 2,
-            "visible": true,
-            "position": {"x": 2716.0, "y": 0.0},
-            "shape": {"type": "polygon", "radius": 0.0, "vertices": [{"x": 32.0, "y": 0}, {"x": 0, "y": 64}, {"x": 64.0, "y": 64}]},
-            "components": [{"component": "sprite", "type": 1, "tint": {"r": 255, "g": 0, "b": 0, "a": 255}}]
-        },
-        {
-            "type": 1,
-            "visible": true,
-            "position": {"x": 4100, "y": 100},
-            "shape": {"type": "polygon", "vertices": [{"x": 0, "y": 0}, {"x": 1024, "y": 0}, {"x": 1024, "y": 20.0}, {"x": 0, "y": 20.0}], "radius": 0.0},
-            "components": [{"component": "sprite", "type": 0, "texture": "", "tint": {"r": 0, "g": 120, "b": 255, "a": 255}}]
-        }
+        {"type": 4, "components": [{"component": 1, "is_sensor": false, "position": {"x": 0, "y": -128}, "shape": {"type": "polygon", "vertices": [{"x": 0, "y": 0}, {"x": 128, "y": 0}, {"x": 128, "y": 128}, {"x": 0, "y": 128}], "radius": 0}}, {"component": 3, "type": 0, "texture": "1.png", "fill_viewport": true}]},
+        {"type": 1, "components": [{"component": 1, "is_sensor": false, "position": {"x": 0, "y": 64}, "shape": {"type": "polygon", "vertices": [{"x": 0, "y": 0}, {"x": 4096, "y": 0}, {"x": 4096, "y": 16}, {"x": 0, "y": 16}], "radius": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 512, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 576, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 640, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 1024, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 1088, "y": 0}}]},
+        {"type": 1, "components": [{"component": 1, "is_sensor": false, "position": {"x": 900, "y": -64}, "shape": {"type": "polygon", "vertices": [{"x": 0, "y": 0}, {"x": 128, "y": 0}, {"x": 128, "y": 20}, {"x": 0, "y": 20}], "radius": 0}}]},
+        {"type": 1, "components": [{"component": 1, "is_sensor": false, "position": {"x": 1000, "y": -150}, "shape": {"type": "polygon", "vertices": [{"x": 0, "y": 0}, {"x": 512, "y": 0}, {"x": 512, "y": 20}, {"x": 0, "y": 20}], "radius": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 1500, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 1564, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 1628, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 1692, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 1756, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 1820, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 1884, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 1948, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 2012, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 2076, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 2140, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 2204, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 2268, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 2332, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 2396, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 2460, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 2524, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 2588, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 2652, "y": 0}}]},
+        {"type": 2, "components": [{"component": 1, "is_sensor": false, "position": {"x": 2716, "y": 0}}]},
+        {"type": 1, "components": [{"component": 1, "is_sensor": false, "position": {"x": 4100, "y": 100}, "shape": {"type": "polygon", "vertices": [{"x": 0, "y": 0}, {"x": 1024, "y": 0}, {"x": 1024, "y": 20}, {"x": 0, "y": 20}], "radius": 0}}]}
     ]
 }

@@ -1,20 +1,20 @@
 #include "game-ui.hpp"
-#include "../game.hpp"
+#include "game/dash.hpp"
 #include "overlays/option-layer.hpp"
 #include "overlays/exit.hpp"
 #include "overlays/editor.hpp"
 #include "overlays/level-selector.hpp"
-#include "overlays/option-layer.hpp"
 #include "overlays/settings.hpp"
 #include "widgets/menu-button.hpp"
 
 #include <imgui-ui/surface.hpp>
 #include <imgui-ui/widgets/text.hpp>
-#include <utility>
+#include <algorithm>
+#include <array>
 
 using namespace ui;
 
-GameUI::GameUI() : LayerContainer("game-ui") {
+GameUI::GameUI(Dash& game) : LayerContainer("game-ui"), m_game(game) {
     set_size({grow(), grow()});
 
     // build menu
@@ -23,7 +23,7 @@ GameUI::GameUI() : LayerContainer("game-ui") {
         m_screens.emplace(GameScreen::Menu, &menu);
         menu.set_size({grow(), grow()});
         menu.set_content_alignment(Anchor::Center);
-        menu.add<TextWidget>("DASH").set_font(game.surface().get_primary_font(56));
+        menu.add<TextWidget>("DASH").set_font(m_game.surface().get_primary_font(), 56);
 
         auto& actions = menu.add<Container>("menu-actions", StackDirection::Horizontal);
         actions.set_size({grow(), fit()});
@@ -55,10 +55,10 @@ GameUI::GameUI() : LayerContainer("game-ui") {
 
     // build options
     {
-        m_screens.emplace(GameScreen::Levels, &add<LevelSelectorLayer>("levels", [this](DashLevel& level) {
+        m_screens.emplace(GameScreen::Levels, &add<LevelSelectorLayer>(m_game, "levels", [this](DashLevel& level) {
                               play_level(level, m_edit_selected_level);
                           }));
-        m_screens.emplace(GameScreen::Settings, &add<SettingsLayer>("game"));
+        m_screens.emplace(GameScreen::Settings, &add<SettingsLayer>(m_game, "game"));
         m_screens.emplace(GameScreen::Exit, &add<ExitLayer>("game", [this] { hide_screen(GameScreen::Exit); }));
 
         auto& loading = add<LayerContainer>("level-loading");
@@ -69,7 +69,7 @@ GameUI::GameUI() : LayerContainer("game-ui") {
         loading.set_input_mode(InputMode::Blocker);
         loading.set_enabled(false);
         loading.set_visible(false);
-        loading.add<TextWidget>("loading...").set_font(game.surface().get_primary_font(32));
+        loading.add<TextWidget>("loading...").set_font(m_game.surface().get_primary_font(), 32);
     }
 
     // build gameplay
@@ -81,7 +81,7 @@ GameUI::GameUI() : LayerContainer("game-ui") {
         gameplay.set_enabled(false);
         gameplay.set_visible(false);
 
-        m_screens.emplace(GameScreen::Editor, &add<EditorLayer>());
+        m_screens.emplace(GameScreen::Editor, &add<EditorLayer>(m_game, [this](UiEvent& event) { this->event(event); }));
 
         auto& pause = add<MenuOptionLayer>("pause");
         m_screens.emplace(GameScreen::Pause, &pause);
@@ -92,15 +92,15 @@ GameUI::GameUI() : LayerContainer("game-ui") {
         pause_actions.set_spacing(12.0F);
         pause_actions.add<TextWidget>("paused");
         pause_actions.add<MenuButton>("resume").on_click([this] {
-            if (game.level_state() == LevelState::EDITING) {
+            if (m_game.level_state() == LevelState::EDITING) {
                 hide_screen(GameScreen::Pause);
                 return;
             }
 
-            game.resume_level();
+            resume_level();
         });
         pause_actions.add<MenuButton>("settings").on_click([this] { show_screen(GameScreen::Settings); });
-        pause_actions.add<MenuButton>("main menu").on_click([] { game.return_to_menu(); });
+        pause_actions.add<MenuButton>("main menu").on_click([this] { return_to_menu(); });
 
         auto& death = add<MenuOptionLayer>("death", TransitionSpec{0.15F, easing::out_cubic}, false);
         m_screens.emplace(GameScreen::Death, &death);
@@ -116,8 +116,10 @@ GameUI::GameUI() : LayerContainer("game-ui") {
         death_actions.set_content_alignment(Anchor::Center);
         death_actions.set_spacing(12.0F);
         death_actions.add<TextWidget>("you died");
-        death_actions.add<MenuButton>("retry").on_click([] { game.restart_current_level(); });
-        death_actions.add<MenuButton>("main menu").on_click([] { game.return_to_menu(); });
+        death_actions.add<MenuButton>("retry").on_click([this] {
+            if (m_game.restart_current_level()) show_screen(GameScreen::Gameplay);
+        });
+        death_actions.add<MenuButton>("main menu").on_click([this] { return_to_menu(); });
     }
 
     // blocking panels receive keyboard input before the root of the ui tree.
@@ -177,6 +179,28 @@ void GameUI::show_levels(bool editor) {
     show_screen(GameScreen::Levels);
 }
 
+void GameUI::pause_level() {
+    if (m_game.level_state() != LevelState::PLAYING) return;
+
+    m_game.set_paused(true);
+    show_screen(GameScreen::Pause);
+}
+
+void GameUI::resume_level() {
+    if (!m_game.is_paused()) return;
+
+    m_game.set_paused(false);
+    show_screen(GameScreen::Gameplay);
+}
+
+void GameUI::return_to_menu() {
+    if (m_game.current_level() != nullptr) {
+        m_game.unload_current_level();
+    }
+
+    show_screen(GameScreen::Menu);
+}
+
 void GameUI::hide_screen(GameScreen screen) {
     auto& node = *m_screens.at(screen);
 
@@ -217,11 +241,22 @@ void GameUI::play_level(DashLevel& level, bool editor) {
         hide_screen(GameScreen::Levels);
         show_screen(GameScreen::Loading);
 
-        loading.animator().animate().delay(0.2F).end([&level, &loading, editor] {
-            const bool loaded = game.load_level(level, editor);
-            loading.animator().animate().delay(0.25F).end([loaded] { game.finish_level_loading(loaded); });
+        loading.animator().animate().delay(0.2F).end([this, &level, &loading, editor] {
+            const bool loaded = m_game.load_level(level, editor);
+            loading.animator().animate().delay(0.25F).end([this, loaded] { finish_level_loading(loaded); });
         });
     });
+}
+
+void GameUI::finish_level_loading(bool loaded) {
+    if (loaded && m_game.start_level()) {
+        show_screen(m_game.level_state() == LevelState::EDITING ? GameScreen::Editor : GameScreen::Gameplay);
+        return;
+    }
+
+    if (loaded) m_game.unload_current_level();
+    show_screen(GameScreen::Menu);
+    show_screen(GameScreen::Levels);
 }
 
 void GameUI::event(UiEvent& event) {
@@ -232,20 +267,19 @@ void GameUI::event(UiEvent& event) {
     }
 
     const GameScreen screen = focused();
-    std::cout << "screen: " << static_cast<int>(screen) << "\n";
     if (screen == GameScreen::Menu || screen == GameScreen::Loading || screen == GameScreen::Death) {
         return;
     }
 
     if (screen == GameScreen::Gameplay) {
-        if (escape) game.pause_level();
+        if (escape) pause_level();
     } else if (screen == GameScreen::Editor) {
         if (escape) show_screen(GameScreen::Pause);
     } else if (screen == GameScreen::Pause) {
-        if (game.level_state() == LevelState::EDITING) {
+        if (m_game.level_state() == LevelState::EDITING) {
             hide_screen(GameScreen::Pause);
         } else {
-            game.resume_level();
+            resume_level();
         }
     } else {
         hide_screen(screen);

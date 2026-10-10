@@ -33,7 +33,7 @@ find_package(OpenGL REQUIRED)
 FetchContent_Declare(
     imgui-ui
     GIT_REPOSITORY https://github.com/mezleca/imgui-ui
-    GIT_TAG 9008b8273f82a237c76c7aead5455d306cafde36
+    GIT_TAG 01cec04808fe3fb25b679cdd9a1c995ef0080921
 )
 FetchContent_MakeAvailable(imgui-ui)
 
@@ -70,6 +70,8 @@ add_executable(${PROJECT_NAME}
     ${SOURCES}
     ${HEADERS}
 )
+
+target_include_directories(${PROJECT_NAME} PRIVATE src)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     imgui-ui::raylib

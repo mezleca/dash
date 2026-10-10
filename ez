@@ -87,8 +87,7 @@ def configure(build_type: str) -> int:
     cmake_build_type = get_cmake_build_type(build_type)
     cmd = [
         "cmake",
-        "-Wno-dev",
-        "-Wold-style-cast",
+        "-Wno-author",
         "-G",
         "Ninja",
         "-B",

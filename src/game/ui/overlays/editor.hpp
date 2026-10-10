@@ -7,14 +7,17 @@ namespace ui {
     class TextWidget;
 } // namespace ui
 
+class Dash;
+
 class DebugInfo : public ui::LayerContainer {
 public:
-    DebugInfo();
+    explicit DebugInfo(Dash& game);
 
 protected:
     void on_update(float frametime) override;
 
 private:
+    Dash& m_game;
     ui::TextWidget* m_camera_position = nullptr;
     ui::TextWidget* m_object_count = nullptr;
     ui::TextWidget* m_camera_zoom = nullptr;
@@ -24,7 +27,7 @@ private:
 
 class EditorPanel : public ui::LayerContainer {
 public:
-    EditorPanel();
+    explicit EditorPanel(Dash& game);
 
 private:
     void set_compact(bool compact);
@@ -35,7 +38,7 @@ private:
 
 class EditorLayer : public ui::LayerContainer {
 public:
-    EditorLayer();
+    EditorLayer(Dash& game, ui::InputCallback on_key_press);
 
 protected:
     void apply_theme_defaults(const ui::Theme& theme) override;

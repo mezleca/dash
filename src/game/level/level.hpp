@@ -5,6 +5,7 @@
 #include "game/paths.hpp"
 #include "behaviour.hpp"
 #include "object-type.hpp"
+#include "game/dash-file.hpp"
 
 #include <string>
 #include <memory>
@@ -26,13 +27,29 @@ struct LevelObject {
     GameObject* object;
 };
 
+struct LevelMetadata {
+    std::string name;
+    std::string creator;
+    std::string description;
+    DashFile music;
+    Vector2 player_start = {};
+};
+
 class DashLevel : public GameObject {
 public:
     explicit DashLevel(Dash& game);
     ~DashLevel();
 
     const std::string& name() const {
-        return m_name;
+        return m_metadata.name;
+    }
+
+    LevelMetadata& metadata() {
+        return m_metadata;
+    }
+
+    const LevelMetadata& metadata() const {
+        return m_metadata;
     }
 
     const fs::path& file() const {
@@ -69,7 +86,7 @@ public:
     }
 
     Vector2 player_start() const {
-        return m_player_start;
+        return m_metadata.player_start;
     }
 
     Player* player() const {
@@ -118,13 +135,10 @@ private:
     Player* m_player = nullptr;
     bool m_loading_objects = false;
 
-    // metadata
     fs::path m_file;  // runtime
-    std::string m_name;
-    std::string m_music_file;
+    LevelMetadata m_metadata;
 
     // level start/end
-    Vector2 m_player_start = {};
     Vector2 m_level_end = {};    // runtime
 
     // progress
@@ -135,6 +149,7 @@ private:
     Music m_music = {};
     float m_music_pitch = 1.0f;
     float m_music_volume = 1.0f;
+    float m_death_start_volume = 1.0f;
     bool m_music_loaded = false;
 
     bool m_finished = false;

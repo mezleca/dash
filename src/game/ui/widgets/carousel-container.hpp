@@ -17,7 +17,7 @@ public:
     }
 
 protected:
-    void arrange_children() override;
+    void draw_children() override;
 
     void event(ui::UiEvent& event) override;
     void mouse_press_event(ui::UiEvent& event) override;
@@ -25,6 +25,8 @@ protected:
     void mouse_release_event(ui::UiEvent& event) override;
 
 private:
+    void arrange_items();
+
     struct Press {
         float x;
         float offset;

@@ -26,26 +26,39 @@ CarouselContainer& CarouselContainer::select(std::size_t index) {
     return *this;
 }
 
-void CarouselContainer::arrange_children() {
+void CarouselContainer::draw_children() {
+    arrange_items();
+    for (const auto& child : children()) {
+        if (child->visible() && !child->removal_pending()) child->draw();
+    }
+}
+
+void CarouselContainer::arrange_items() {
     // measure the row and find the offset that centers the selected item.
     const ImVec2 available = child_layout_size();
+
     float cursor = 0.0F;
     float target = 0.0F;
     std::size_t index = 0;
+
     for (const auto& child : children()) {
         if (!is_carousel_item(*child)) continue;
 
-        const ImVec2 margin = child->layout_margin();
-        const ImVec2 size = child->layout().resolve_size(
-            {std::max(0.0F, available.x - margin.x * 2.0F), std::max(0.0F, available.y - margin.y * 2.0F)}
-        );
+        const BoxInsets margin = child->layout_margin();
+        const ImVec2 child_available = {
+            std::max(0.0F, available.x - margin.horizontal()), std::max(0.0F, available.y - margin.vertical())
+        };
+
+        const ImVec2 size = child->layout().resolve_size(child_available);
         arrange_child(*child, size);
+
         if (index <= m_selected) {
-            target = cursor + margin.x + size.x * 0.5F - available.x * 0.5F;
-            m_stride = size.x + margin.x * 2.0F + m_spacing;
+            target = cursor + margin.left + size.x * 0.5F - available.x * 0.5F;
+            m_stride = size.x + margin.horizontal() + m_spacing;
         }
+
         ++index;
-        cursor += size.x + margin.x * 2.0F + m_spacing;
+        cursor += size.x + margin.horizontal() + m_spacing;
     }
 
     if (index == 0) {
@@ -55,26 +68,29 @@ void CarouselContainer::arrange_children() {
         m_selected = 0;
         return;
     }
-    m_selected = std::min(m_selected, index - 1);
 
-    if (!m_target) m_offset = target;
+    m_selected = std::min(m_selected, index - 1);
+    if (!m_target) {
+        m_offset = target;
+    }
 
     if (!m_press && (target != m_target || (!animator().transitioning() && m_offset != target))) {
         animator().cancel();
         animator().animate().to(m_offset, target, {0.2F, easing::out_cubic});
     }
-    m_target = target;
 
+    m_target = target;
     cursor = -m_offset;
+
     for (const auto& child : children()) {
         if (!is_carousel_item(*child)) continue;
 
         const ImVec2 size = child->layout().size();
-        const ImVec2 margin = child->layout_margin();
+        const BoxInsets margin = child->layout_margin();
         Placement placement{};
-        placement.offset = {cursor + margin.x, (available.y - size.y) * 0.5F};
+        placement.offset = {cursor + margin.left, margin.top + (available.y - size.y - margin.vertical()) * 0.5F};
         arrange_child(*child, size, placement);
-        cursor += size.x + margin.x * 2.0F + m_spacing;
+        cursor += size.x + margin.horizontal() + m_spacing;
     }
 }
 
@@ -136,6 +152,7 @@ void CarouselContainer::mouse_release_event(UiEvent& input) {
         else if (m_selected > 0)
             select(m_selected - 1);
     }
+
     input.prevent_default();
     input.stop_propagation();
 }

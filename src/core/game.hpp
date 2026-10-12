@@ -5,7 +5,7 @@
 #include "physics/world.hpp"
 
 #include <imgui-ui/surface.hpp>
-
+#include <imgui-ui/diagnostics/debugger.hpp>
 #include <memory>
 #include <string>
 #include <utility>
@@ -59,6 +59,10 @@ public:
         return m_window;
     }
 
+    bool is_debugger_open() const {
+        return m_ui->debugger()->is_open();
+    }
+
 protected:
     virtual void on_initialize() = 0;
     virtual void on_fixed_update(float timestep);
@@ -68,6 +72,8 @@ protected:
 
     void reset_simulation_clock();
 
+    std::unique_ptr<ui::Surface> m_ui;
+
 private:
     void update_simulation_timestep();
     void update_objects(float frametime);
@@ -75,7 +81,6 @@ private:
     void remove_pending_objects();
 
     GameWindow m_window;
-    std::unique_ptr<ui::Surface> m_ui;
     World m_world;
     CameraView m_camera;
     std::vector<std::unique_ptr<GameObject>> m_objects;

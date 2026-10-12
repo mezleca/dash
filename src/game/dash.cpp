@@ -3,6 +3,7 @@
 #include "core/math.hpp"
 
 #include <imgui-ui/diagnostics/debugger.hpp>
+#include <imgui-ui/input/router.hpp>
 #include <imgui-ui/runtime.hpp>
 #include <imgui-ui/layout/container.hpp>
 #include <iostream>
@@ -66,7 +67,8 @@ void Dash::on_update(float frametime) {
     }
 
     if (m_current_level->state() == LevelState::EDITING) {
-        m_editor_camera_controls.update(camera(), m_game_ui->pointer_over_ui());
+        const Vector2 pointer = GetMousePosition();
+        m_editor.update(camera(), *m_current_level, m_game_ui->pointer_over_ui({pointer.x, pointer.y}), is_debugger_open());
     }
 
     if (m_current_level->update()) {
@@ -97,6 +99,14 @@ void Dash::build_ui() {
     static_cast<Container&>(root).configure_all_styles([](Style& style) { style.background_color(rgba(0, 0, 0, 0)); });
 
     m_game_ui = &root.add<GameUI>(*this);
+    surface().input_router().on_event([this](UiEvent& event) {
+        if (event.type != EventType::PointerDown || event.button != PointerButton::Left || m_current_level == nullptr ||
+            m_current_level->state() != LevelState::EDITING || is_debugger_open() || m_game_ui->pointer_over_ui(event.position)) {
+            return;
+        }
+
+        m_editor.pointer_down(camera(), *m_current_level, {event.position.x, event.position.y});
+    });
 }
 
 bool Dash::simulation_active() const {
@@ -123,7 +133,7 @@ bool Dash::load_level(DashLevel& level, bool editor) {
 
     camera().view().zoom = DEFAULT_CAMERA_ZOOM;
     camera().view().rotation = DEFAULT_CAMERA_ROTATION;
-    m_editor_camera_controls.reset();
+    m_editor.reset();
 
     if (editor) {
         camera().set_target(level.player_start());
@@ -153,7 +163,7 @@ bool Dash::start_level() {
 
     camera().view().zoom = DEFAULT_CAMERA_ZOOM;
     camera().view().rotation = DEFAULT_CAMERA_ROTATION;
-    m_editor_camera_controls.reset();
+    m_editor.reset();
     reset_simulation_clock();
 
     m_current_level->reset();
@@ -192,7 +202,7 @@ void Dash::unload_current_level() {
     camera().set_target({});
 
     // reset editor camera to default values.
-    m_editor_camera_controls.reset();
+    m_editor.reset();
 
     reset_simulation_clock();
     m_current_level = nullptr;

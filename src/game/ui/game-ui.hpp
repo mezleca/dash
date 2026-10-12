@@ -33,7 +33,7 @@ public:
     void return_to_menu();
 
     GameScreen focused() const;
-    bool pointer_over_ui() const;
+    bool pointer_over_ui(ImVec2 position) const;
 
 protected:
     void event(ui::UiEvent& event) override;

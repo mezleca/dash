@@ -134,13 +134,13 @@ bool DashLevel::load(const fs::path& location) {
     std::cout << "[level] loading level from " << location << "\n";
 
     try {
-        load_from_file(location);
+        const auto absolute_location = fs::absolute(location);
+        load_from_file(absolute_location);
+        m_file = absolute_location;
     } catch (const std::exception& error) {
         std::cout << "[level] invalid level metadata in " << location << ": " << error.what() << "\n";
         return false;
     }
-
-    m_file = location;
 
     return true;
 }
@@ -164,25 +164,38 @@ bool DashLevel::load_objects() {
 }
 
 void DashLevel::serialize(Serializer& serializer) const {
-    serializer.field("name", m_name);
-    serializer.field("music_file", m_music_file);
-    serializer.field("player_start", m_player_start);
+    serializer.field("name", m_metadata.name);
+    serializer.field("creator", m_metadata.creator);
+    serializer.field("description", m_metadata.description);
+    serializer.field("music_file", m_metadata.music.path().filename().string());
+    serializer.field("player_start", m_metadata.player_start);
 
     serializer.begin_array("objects");
+
     for (const auto& object : m_objects) {
         serializer.begin_element();
         serializer.field("type", static_cast<int>(object.type));
         object.object->serialize(serializer);
         serializer.end_element();
     }
+
     serializer.end_array();
 }
 
 void DashLevel::deserialize(Deserializer& deserializer, const fs::path& directory) {
-    if (!deserializer.field("name", m_name) || !deserializer.field("music_file", m_music_file) ||
-        !deserializer.field("player_start", m_player_start)) {
+    std::string music_file;
+    if (!deserializer.field("name", m_metadata.name) || !deserializer.field("music_file", music_file) ||
+        !deserializer.field("player_start", m_metadata.player_start)) {
         throw std::invalid_argument("level metadata is incomplete");
     }
+
+    m_metadata.music = DashFile(directory / fs::path(music_file).filename());
+
+    m_metadata.creator.clear();
+    deserializer.field("creator", m_metadata.creator);
+
+    m_metadata.description.clear();
+    deserializer.field("description", m_metadata.description);
 
     if (!m_loading_objects) return;
 
@@ -260,6 +273,7 @@ bool DashLevel::save() {
 
 void DashLevel::begin_death() {
     m_death_elapsed = 0.0f;
+    m_death_start_volume = m_music_volume;
     m_finished_death_animation = false;
     set_state(LevelState::DEATH);
 }
@@ -275,14 +289,14 @@ void DashLevel::spawn_player(bool god_mode, bool free_mode) {
     }
 
     m_player->set_free_mode(free_mode);
-    m_player->body().set_position(m_player_start.x, m_player_start.y);
+    m_player->body().set_position(m_metadata.player_start.x, m_metadata.player_start.y);
 }
 
 void DashLevel::update_death_animation() {
     m_death_elapsed = std::min(m_death_elapsed + GetFrameTime(), DEATH_ANIMATION_DURATION);
     const float progress = death_animation_progress();
     set_music_pitch(d_math::lerp(1.0f, 0.0f, progress));
-    set_music_volume(d_math::lerp(1.0f, 0.0f, progress));
+    set_music_volume(std::min(m_music_volume, d_math::lerp(m_death_start_volume, 0.0f, progress)));
 
     if (m_death_elapsed >= DEATH_ANIMATION_DURATION && !m_finished_death_animation) {
         m_finished_death_animation = true;
@@ -294,7 +308,7 @@ void DashLevel::update_death_animation() {
 bool DashLevel::load_music() {
     unload_music();
 
-    const auto location = m_file.parent_path() / m_music_file;
+    const auto location = m_metadata.music.path();
     m_music = LoadMusicStream(location.c_str());
     m_music_loaded = IsMusicValid(m_music);
     if (!m_music_loaded) {

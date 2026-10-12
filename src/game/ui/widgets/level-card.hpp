@@ -3,6 +3,10 @@
 #include <imgui-ui/widgets/button.hpp>
 
 class DashLevel;
+namespace ui {
+    class Container;
+    class TextWidget;
+} // namespace ui
 
 class LevelCard : public ui::ButtonWidget {
 public:
@@ -10,4 +14,12 @@ public:
 
 protected:
     void apply_theme_defaults(const ui::Theme& theme) override;
+    void on_update(float frametime) override;
+    void draw_children() override;
+
+private:
+    const DashLevel& m_level;
+    ui::Container* m_content = nullptr;
+    ui::TextWidget* m_name = nullptr;
+    ui::TextWidget* m_description = nullptr;
 };

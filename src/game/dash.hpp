@@ -4,7 +4,7 @@
 #include "game/entity/player.hpp"
 #include "game/level/level.hpp"
 #include "game/settings/settings.hpp"
-#include "editor/camera-controls.hpp"
+#include "editor/editor.hpp"
 #include "paths.hpp"
 
 #include <unordered_map>
@@ -34,22 +34,30 @@ public:
         return m_current_level != nullptr ? m_current_level->player() : nullptr;
     }
 
+    DashLevel* current_level() {
+        return m_current_level;
+    }
+
     const DashLevel* current_level() const {
         return m_current_level;
+    }
+
+    LevelEditor& editor() {
+        return m_editor;
     }
 
     SettingsManager& settings() {
         return *m_settings;
     }
 
-    void set_paused(bool value);
-    bool is_paused() const;
-    bool has_finished_level() const;
-
     LevelState level_state() {
         if (m_current_level == nullptr) return LevelState::INVALID;
         return m_current_level->state();
     }
+
+    void set_paused(bool value);
+    bool is_paused() const;
+    bool has_finished_level() const;
 
     bool load_level(DashLevel& level, bool editor = false);
     bool start_level();
@@ -80,7 +88,7 @@ private:
 
     std::unique_ptr<SettingsManager> m_settings;
     GameUI* m_game_ui = nullptr;
-    EditorCameraControls m_editor_camera_controls;
+    LevelEditor m_editor;
 
     DashLevel* m_current_level = nullptr;
     std::unordered_map<std::string, DashLevel*> m_levels;

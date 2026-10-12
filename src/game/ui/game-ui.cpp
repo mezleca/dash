@@ -1,10 +1,10 @@
 #include "game-ui.hpp"
 #include "game/dash.hpp"
-#include "overlays/option-layer.hpp"
-#include "overlays/exit.hpp"
-#include "overlays/editor.hpp"
-#include "overlays/level-selector.hpp"
-#include "overlays/settings.hpp"
+#include "overlays/option-overlay.hpp"
+#include "overlays/exit/exit.hpp"
+#include "overlays/editor/editor.hpp"
+#include "overlays/level-selector/level-selector.hpp"
+#include "overlays/settings/settings.hpp"
 #include "widgets/menu-button.hpp"
 
 #include <imgui-ui/surface.hpp>
@@ -55,11 +55,11 @@ GameUI::GameUI(Dash& game) : LayerContainer("game-ui"), m_game(game) {
 
     // build options
     {
-        m_screens.emplace(GameScreen::Levels, &add<LevelSelectorLayer>(m_game, "levels", [this](DashLevel& level) {
+        m_screens.emplace(GameScreen::Levels, &add<LevelSelectorOverlay>(m_game, "levels", [this](DashLevel& level) {
                               play_level(level, m_edit_selected_level);
                           }));
-        m_screens.emplace(GameScreen::Settings, &add<SettingsLayer>(m_game, "game"));
-        m_screens.emplace(GameScreen::Exit, &add<ExitLayer>("game", [this] { hide_screen(GameScreen::Exit); }));
+        m_screens.emplace(GameScreen::Settings, &add<SettingsOverlay>(m_game, "game"));
+        m_screens.emplace(GameScreen::Exit, &add<ExitOverlay>("game", [this] { hide_screen(GameScreen::Exit); }));
 
         auto& loading = add<LayerContainer>("level-loading");
         m_screens.emplace(GameScreen::Loading, &loading);
@@ -67,7 +67,7 @@ GameUI::GameUI(Dash& game) : LayerContainer("game-ui"), m_game(game) {
         loading.set_size({grow(), grow()});
         loading.set_content_alignment(Anchor::BottomCenter);
         loading.set_input_mode(InputMode::Blocker);
-        loading.set_enabled(false);
+        loading.set_input_enabled(false);
         loading.set_visible(false);
         loading.add<TextWidget>("loading...").set_font(m_game.surface().get_primary_font(), 32);
     }
@@ -78,12 +78,12 @@ GameUI::GameUI(Dash& game) : LayerContainer("game-ui"), m_game(game) {
         m_screens.emplace(GameScreen::Gameplay, &gameplay);
         gameplay.set_size({grow(), grow()});
         gameplay.set_input_mode(InputMode::None);
-        gameplay.set_enabled(false);
+        gameplay.set_input_enabled(false);
         gameplay.set_visible(false);
 
-        m_screens.emplace(GameScreen::Editor, &add<EditorLayer>(m_game, [this](UiEvent& event) { this->event(event); }));
+        m_screens.emplace(GameScreen::Editor, &add<EditorOverlay>(m_game, [this](UiEvent& event) { this->event(event); }));
 
-        auto& pause = add<MenuOptionLayer>("pause");
+        auto& pause = add<MenuOptionOverlay>("pause");
         m_screens.emplace(GameScreen::Pause, &pause);
         pause.set_content_alignment(Anchor::Center);
         auto& pause_actions = pause.add<Container>("pause-actions");
@@ -102,13 +102,13 @@ GameUI::GameUI(Dash& game) : LayerContainer("game-ui"), m_game(game) {
         pause_actions.add<MenuButton>("settings").on_click([this] { show_screen(GameScreen::Settings); });
         pause_actions.add<MenuButton>("main menu").on_click([this] { return_to_menu(); });
 
-        auto& death = add<MenuOptionLayer>("death", TransitionSpec{0.15F, easing::out_cubic}, false);
+        auto& death = add<MenuOptionOverlay>("death", TransitionSpec{0.15F, easing::out_cubic}, false);
         m_screens.emplace(GameScreen::Death, &death);
         death.set_size({grow(), grow()});
         death.set_content_alignment(Anchor::Center);
         death.configure_all_styles([](Style& style) {
             style.background_color(rgba(160, 0, 0, 85));
-            style.border(0);
+            style.border(BorderEdge{0.0F, BorderType::None});
         });
 
         auto& death_actions = death.add<Container>("death-actions");
@@ -124,7 +124,7 @@ GameUI::GameUI(Dash& game) : LayerContainer("game-ui"), m_game(game) {
 
     // blocking panels receive keyboard input before the root of the ui tree.
     for (const auto& entry : m_screens) {
-        if (auto* layer = dynamic_cast<MenuOptionLayer*>(entry.second)) {
+        if (auto* layer = dynamic_cast<MenuOptionOverlay*>(entry.second)) {
             layer->on_key_press([this](UiEvent& event) { this->event(event); });
         }
     }
@@ -134,15 +134,24 @@ GameScreen GameUI::focused() const {
     return m_open.empty() ? GameScreen::Gameplay : m_open.back();
 }
 
-bool GameUI::pointer_over_ui() const {
+bool GameUI::pointer_over_ui(ImVec2 position) const {
+    const ui::Node* target = surface().input_router().node_at(position, EventType::PointerDown);
+    if (target == nullptr) {
+        return false;
+    }
+
     for (const auto& [screen, node] : m_screens) {
-        if (!node->visible() || !node->enabled() || screen == GameScreen::Gameplay) continue;
+        if (!node->visible() || !node->input_enabled() || screen == GameScreen::Gameplay) {
+            continue;
+        }
 
         if (screen == GameScreen::Editor) {
             for (const auto& child : node->children()) {
-                if (child->visible() && child->enabled() && child->subtree_input_state().hovered) return true;
+                if (child->visible() && child->input_enabled() && child->contains(target)) {
+                    return true;
+                }
             }
-        } else if (node->subtree_input_state().hovered) {
+        } else if (node->contains(target)) {
             return true;
         }
     }
@@ -162,10 +171,10 @@ void GameUI::show_screen(GameScreen screen) {
     auto& node = *m_screens.at(screen);
     add(detach(node));
 
-    if (auto* panel = dynamic_cast<MenuOptionLayer*>(&node)) {
-        if (!panel->enabled()) panel->show();
+    if (auto* panel = dynamic_cast<MenuOptionOverlay*>(&node)) {
+        if (!panel->input_enabled()) panel->show();
     } else {
-        node.set_enabled(true);
+        node.set_input_enabled(true);
         node.set_visible(true);
     }
 
@@ -204,11 +213,11 @@ void GameUI::return_to_menu() {
 void GameUI::hide_screen(GameScreen screen) {
     auto& node = *m_screens.at(screen);
 
-    if (auto* panel = dynamic_cast<MenuOptionLayer*>(&node)) {
+    if (auto* panel = dynamic_cast<MenuOptionOverlay*>(&node)) {
         panel->hide();
     } else {
         node.cancel_animations();
-        node.set_enabled(false);
+        node.set_input_enabled(false);
         node.set_visible(false);
     }
 
@@ -220,7 +229,7 @@ void GameUI::hide_all_screens() {
     for (const auto& entry : m_screens) {
         auto& node = *entry.second;
         node.cancel_animations();
-        node.set_enabled(false);
+        node.set_input_enabled(false);
         node.set_visible(false);
     }
 
@@ -274,7 +283,7 @@ void GameUI::event(UiEvent& event) {
     if (screen == GameScreen::Gameplay) {
         if (escape) pause_level();
     } else if (screen == GameScreen::Editor) {
-        if (escape) show_screen(GameScreen::Pause);
+        if (escape && !m_game.editor().clear_selection()) show_screen(GameScreen::Pause);
     } else if (screen == GameScreen::Pause) {
         if (m_game.level_state() == LevelState::EDITING) {
             hide_screen(GameScreen::Pause);

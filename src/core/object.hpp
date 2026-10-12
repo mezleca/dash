@@ -44,6 +44,18 @@ public:
         return z_index;
     }
 
+    void set_z_order(int value) {
+        z_index = value;
+    }
+
+    bool is_visible() const {
+        return visible;
+    }
+
+    void set_visible(bool value) {
+        visible = value;
+    }
+
     void remove_component(Component& component);
 
     void update(float frametime);

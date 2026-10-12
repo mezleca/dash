@@ -8,7 +8,7 @@
 
 using namespace ui;
 
-SettingsLayer::SettingsLayer(Dash& game, std::string id) : MenuOptionLayer("settings-" + id), m_game(game) {
+SettingsOverlay::SettingsOverlay(Dash& game, std::string id) : MenuOptionOverlay("settings-" + id), m_game(game) {
     m_volume = m_game.settings().volume();
     m_godmode = m_game.settings().godmode();
     m_free_mode = m_game.free_mode();
@@ -26,9 +26,8 @@ SettingsLayer::SettingsLayer(Dash& game, std::string id) : MenuOptionLayer("sett
     options.set_size({grow(), fit()});
     options.set_spacing(12.0F);
 
-    auto& volume = options.add<NumberInputWidget>(m_volume);
+    auto& volume = options.add<NumberInputWidget>(m_volume, "music volume");
     volume.set_size({px(300), fit()});
-    volume.set_label("music volume");
     volume.set_range(0, 100);
     volume.on_change([this] { m_game.set_music_volume(m_volume); });
 
@@ -39,6 +38,6 @@ SettingsLayer::SettingsLayer(Dash& game, std::string id) : MenuOptionLayer("sett
     free_mode.on_change([this] { m_game.set_free_mode(m_free_mode); });
 }
 
-ImGuiWindowFlags SettingsLayer::child_window_flags() const {
+ImGuiWindowFlags SettingsOverlay::child_window_flags() const {
     return Container::child_window_flags();
 }

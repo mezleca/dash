@@ -16,7 +16,7 @@ void MenuButton::apply_theme_defaults(const Theme& theme) {
 
     configure_all_styles([&](Style& style) {
         style.background_color(rgba(0, 0, 0, 0), transition);
-        style.border(BORDER_BOTTOM);
+        style.border(BorderEdge{0.0F, BorderType::None}).border_bottom(1.0F);
         style.border_radius(0);
         style.border_color(rgb(200, 200, 200), transition);
         style.padding({12.0F, 2.0F});

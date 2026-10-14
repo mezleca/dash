@@ -25,7 +25,8 @@ static float get_angle_tilt(float a, float b, float c) {
     return result;
 }
 
-Player::Player(Dash& game, bool god_mode) : m_game(game), m_body(add_component<RigidBody>(game.world(), b2_dynamicBody)) {
+Player::Player(Dash& game, bool god_mode)
+    : Entity(EntityType::PLAYER), m_game(game), m_body(add_component<RigidBody>(game.world(), b2_dynamicBody)) {
     m_sprite = &add_component<Sprite>();
     update_player_type(PlayerType::BIRD);
     m_in_god_mode = god_mode;

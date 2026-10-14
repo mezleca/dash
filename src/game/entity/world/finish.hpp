@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/components/rigid-body.hpp"
-#include "core/object.hpp"
+#include "game/entity/entity.hpp"
 
 class Sprite;
 
@@ -16,7 +16,7 @@ private:
     float m_alpha = 0.0f;
 };
 
-class Finish : public GameObject {
+class Finish : public Entity {
 public:
     explicit Finish(World& world);
 };

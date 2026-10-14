@@ -1,7 +1,11 @@
 #include "carousel-container.hpp"
+#include "../../utils/utils.hpp"
+         "
 
 #include <algorithm>
+#include <iostream>
 #include <cmath>
+#include <raylib.h>
 #include <utility>
 
 using namespace ui;
@@ -110,7 +114,7 @@ void CarouselContainer::mouse_press_event(UiEvent& input) {
 }
 
 void CarouselContainer::mouse_move_event(UiEvent& input) {
-    if (!m_press) return;
+    if (!m_press || !utils::is_mouse_within_window()) return;
 
     const float distance = input.position.x - m_press->x;
     if (!m_press->dragging && std::abs(distance) < 8.0F) return;
@@ -132,7 +136,9 @@ void CarouselContainer::mouse_release_event(UiEvent& input) {
     if (!press.dragging) {
         std::size_t index = 0;
         for (const auto& child : children()) {
-            if (!is_carousel_item(*child)) continue;
+            if (!is_carousel_item(*child)) {
+                continue;
+            }
 
             if (child->layout().visual_rect().contains(input.position) && index != m_selected) {
                 select(index);

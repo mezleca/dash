@@ -16,7 +16,7 @@
 
 constexpr float DEATH_ANIMATION_DURATION = 1.0f; // in seconds
 
-DashLevel::DashLevel(Dash& game) : m_game(game) {}
+DashLevel::DashLevel(Dash& game) : Entity(EntityType::LEVEL), m_game(game) {}
 
 DashLevel::~DashLevel() {
     unload();
@@ -106,8 +106,8 @@ void DashLevel::clear_objects() {
     m_behaviours.clear();
     m_game.remove_object(m_player);
     m_player = nullptr;
-    for (const auto& entry : m_objects) {
-        m_game.remove_object(entry.object);
+    for (auto* object : m_objects) {
+        m_game.remove_object(object);
     }
     m_objects.clear();
 }
@@ -172,10 +172,10 @@ void DashLevel::serialize(Serializer& serializer) const {
 
     serializer.begin_array("objects");
 
-    for (const auto& object : m_objects) {
+    for (const auto* object : m_objects) {
         serializer.begin_element();
-        serializer.field("type", static_cast<int>(object.type));
-        object.object->serialize(serializer);
+        serializer.field("type", static_cast<int>(object->type()));
+        object->serialize(serializer);
         serializer.end_element();
     }
 
@@ -210,23 +210,23 @@ void DashLevel::deserialize(Deserializer& deserializer, const fs::path& director
             throw std::invalid_argument("level object type is missing");
         }
 
-        const auto type = static_cast<ObjectType>(raw_type);
-        GameObject* object = nullptr;
+        const auto type = static_cast<EntityType>(raw_type);
+        Entity* object = nullptr;
         switch (type) {
-            case ObjectType::PLATFORM:
+            case EntityType::PLATFORM:
                 object = &m_game.add_object<Platform>(m_game.world());
                 break;
-            case ObjectType::SPIKE:
+            case EntityType::SPIKE:
                 object = &m_game.add_object<Spike>(m_game.world());
                 break;
-            case ObjectType::STATIC_TEXTURE:
+            case EntityType::STATIC_TEXTURE:
                 object = &m_game.add_object<StaticTexture>(m_game.world());
                 break;
-            case ObjectType::END:
+            case EntityType::END:
                 object = &m_game.add_object<Finish>(m_game.world());
                 has_finish = true;
                 break;
-            case ObjectType::TRIGGER:
+            case EntityType::TRIGGER:
                 object = &m_game.add_object<Trigger>(m_game.world(), *this);
                 break;
             default:
@@ -236,12 +236,12 @@ void DashLevel::deserialize(Deserializer& deserializer, const fs::path& director
         }
 
         // track the object before reading components so a failed load removes it from the game.
-        m_objects.push_back({type, object});
+        m_objects.push_back(object);
         object->deserialize(deserializer, directory);
         auto* body = object->get_component<RigidBody>();
 
         const Rectangle bounds = body->get_bounding_box();
-        if (type == ObjectType::PLATFORM && bounds.x + bounds.width > m_level_end.x) {
+        if (type == EntityType::PLATFORM && bounds.x + bounds.width > m_level_end.x) {
             m_level_end = {bounds.x + bounds.width, bounds.y};
         }
 
@@ -256,7 +256,7 @@ void DashLevel::deserialize(Deserializer& deserializer, const fs::path& director
         auto& end = m_game.add_object<Finish>(m_game.world());
         auto* body = end.get_component<RigidBody>();
         body->set_position(m_level_end.x - body->get_dimensions().x / 2.0f, m_level_end.y - body->get_dimensions().x / 2.0f);
-        m_objects.push_back({ObjectType::END, &end});
+        m_objects.push_back(&end);
     }
 }
 

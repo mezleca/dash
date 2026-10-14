@@ -189,7 +189,7 @@ public:
         add_title(*body, "Properties");
 
         const DashLevel* level = m_game.current_level();
-        const LevelObject* selected = level != nullptr ? m_game.editor().selected_object(*level) : nullptr;
+        Entity* selected = level != nullptr ? m_game.editor().selected_object(*level) : nullptr;
         if (selected == nullptr) {
             body->add<TextWidget>("select an object in the world");
             return;
@@ -197,11 +197,11 @@ public:
 
         build_object(*body, *selected);
 
-        if (auto* rigid_body = selected->object->get_component<RigidBody>()) {
+        if (auto* rigid_body = selected->get_component<RigidBody>()) {
             build_rigid_body(*body, *rigid_body);
         }
 
-        if (auto* sprite = selected->object->get_component<Sprite>()) {
+        if (auto* sprite = selected->get_component<Sprite>()) {
             build_sprite(*body, *sprite);
         }
     }
@@ -214,39 +214,16 @@ private:
         return field;
     }
 
-    void build_object(Node& body, const LevelObject& selected) {
-        const char* type = "unknown";
-        switch (selected.type) {
-            case ObjectType::PLATFORM:
-                type = "platform";
-                break;
-            case ObjectType::SPIKE:
-                type = "spike";
-                break;
-            case ObjectType::STATIC_TEXTURE:
-                type = "static texture";
-                break;
-            case ObjectType::END:
-                type = "finish";
-                break;
-            case ObjectType::TRIGGER:
-                type = "trigger";
-                break;
-            default:
-                break;
-        }
-
-        body.add<TextWidget>(TextFormat("type: %s", type));
-        m_z_index = selected.object->z_order();
+    void build_object(Node& body, Entity& selected) {
+        body.add<TextWidget>(TextFormat("type: %s", selected.type_to_str()));
+        m_z_index = selected.z_order();
         auto& z_index = body.add<NumberInputWidget>(m_z_index, "z index", LabelPlacement::Above);
         z_index.set_size({grow(), fit()});
         z_index.clear_range();
-        z_index.on_change([this, object = selected.object] { object->set_z_order(m_z_index); });
+        z_index.on_change([this, object = &selected] { object->set_z_order(m_z_index); });
 
-        m_visible = selected.object->is_visible();
-        body.add<CheckboxWidget>(m_visible, "visible").on_change([this, object = selected.object] {
-            object->set_visible(m_visible);
-        });
+        m_visible = selected.is_visible();
+        body.add<CheckboxWidget>(m_visible, "visible").on_change([this, object = &selected] { object->set_visible(m_visible); });
     }
 
     void build_rigid_body(Node& body, RigidBody& rigid_body) {

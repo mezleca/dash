@@ -1,9 +1,9 @@
 #pragma once
 
 #include "core/components/rigid-body.hpp"
-#include "core/object.hpp"
+#include "game/entity/entity.hpp"
 
-class Platform : public GameObject {
+class Platform : public Entity {
 public:
     explicit Platform(World& world);
 };

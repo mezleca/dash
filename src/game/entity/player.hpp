@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/components/rigid-body.hpp"
-#include "core/object.hpp"
+#include "game/entity/entity.hpp"
 
 class Sprite;
 class CameraView;
@@ -13,7 +13,7 @@ enum class PlayerType : int {
     BIRD
 };
 
-class Player : public GameObject {
+class Player : public Entity {
 public:
     explicit Player(Dash& game, bool god_mode = false);
 

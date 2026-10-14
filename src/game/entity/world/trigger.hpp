@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/components/rigid-body.hpp"
-#include "core/object.hpp"
+#include "game/entity/entity.hpp"
 #include "game/level/behaviour.hpp"
 
 #include <functional>
@@ -9,7 +9,7 @@
 
 class DashLevel;
 
-class Trigger : public GameObject {
+class Trigger : public Entity {
 public:
     Trigger(World& world, DashLevel& level);
 

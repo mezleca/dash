@@ -13,7 +13,7 @@ void FinishPulse::update(float frametime) {
     m_sprite.tint.a = static_cast<unsigned char>(255.0f * m_alpha);
 }
 
-Finish::Finish(World& world) {
+Finish::Finish(World& world) : Entity(EntityType::END) {
     auto& body = add_component<RigidBody>(world, b2_staticBody, true);
     body.set_shape(b2Circle{{0.0f, 0.0f}, 256.0f / PHYSICS_PIXELS_PER_METER});
 

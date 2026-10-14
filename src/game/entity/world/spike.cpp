@@ -1,7 +1,7 @@
 #include "spike.hpp"
 #include "core/components/sprite.hpp"
 
-Spike::Spike(World& world) {
+Spike::Spike(World& world) : Entity(EntityType::SPIKE) {
     auto& body = add_component<RigidBody>(world);
     const b2Vec2 vertices[] = {{0.5f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}};
     const b2Hull hull = b2ComputeHull(vertices, 3);

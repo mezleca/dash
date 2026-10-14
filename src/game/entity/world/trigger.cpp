@@ -3,7 +3,7 @@
 
 #include <utility>
 
-Trigger::Trigger(World& world, DashLevel& level) : m_level(level) {
+Trigger::Trigger(World& world, DashLevel& level) : Entity(EntityType::TRIGGER), m_level(level) {
     add_component<RigidBody>(world, b2_staticBody, true);
 }
 

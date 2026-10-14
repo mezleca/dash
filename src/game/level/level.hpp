@@ -1,10 +1,9 @@
 #pragma once
 
 #include "core/components/rigid-body.hpp"
-#include "core/object.hpp"
+#include "game/entity/entity.hpp"
 #include "game/paths.hpp"
 #include "behaviour.hpp"
-#include "object-type.hpp"
 #include "game/dash-file.hpp"
 
 #include <string>
@@ -22,11 +21,6 @@ enum class LevelState : int8_t {
 class Player;
 class Dash;
 
-struct LevelObject {
-    ObjectType type;
-    GameObject* object;
-};
-
 struct LevelMetadata {
     std::string name;
     std::string creator;
@@ -35,7 +29,7 @@ struct LevelMetadata {
     Vector2 player_start = {};
 };
 
-class DashLevel : public GameObject {
+class DashLevel : public Entity {
 public:
     explicit DashLevel(Dash& game);
     ~DashLevel();
@@ -97,7 +91,7 @@ public:
         return m_current_progress;
     }
 
-    const std::vector<LevelObject>& objects() const {
+    const std::vector<Entity*>& objects() const {
         return m_objects;
     }
 
@@ -130,7 +124,7 @@ private:
     void clear_objects();
 
     Dash& m_game;
-    std::vector<LevelObject> m_objects;
+    std::vector<Entity*> m_objects;
     std::vector<std::unique_ptr<Behaviour>> m_behaviours;
     Player* m_player = nullptr;
     bool m_loading_objects = false;

@@ -15,7 +15,7 @@ Platformer Game inspired by Geometry Dash.
     - [x] data (objects, etc...)
     - [x] metadata: name
     - [x] metadata: description
-    - [ ] metadata: cover
+    - [ ] metadata: cover (card)
     
 ### GAMEPLAY
 - [x] object: spike
@@ -43,8 +43,9 @@ Platformer Game inspired by Geometry Dash.
 
 ### EDITOR
 - [ ] panel: objects (select and place on world)
-- [ ] panel: properties (will automatically change after placing a new object or clicking on one)
+- [x] panel: properties (will automatically change after placing a new object or clicking on one)
 - [x] panel: metadata (update level metadata)
+- [x] move and selector mode 
 - [x] move camera on drag
 - [x] zoom camera on scrollwheel
 - [ ] move selected gameobject

@@ -10,13 +10,6 @@ using namespace ui;
 LevelSelectorOverlay::LevelSelectorOverlay(Dash& game, std::string id, std::function<void(DashLevel&)> on_select)
     : MenuOptionOverlay("level-selector-" + id) {
     set_size({grow(), grow()});
-    configure_all_styles([](Style& style) {
-        style.border(BorderEdge{0.0F, BorderType::None});
-        style.padding({});
-        style.background_color(
-            gradient(GradientType::Linear, {{0.0F, rgb(33, 33, 33)}, {1.0F, rgb(16, 16, 16)}}, {0, 0}, {0, 1})
-        );
-    });
 
     auto& levels = game.levels();
     if (levels.empty()) {
@@ -33,4 +26,14 @@ LevelSelectorOverlay::LevelSelectorOverlay(Dash& game, std::string id, std::func
             card.on_click([on_select, selected = &level] { on_select(*selected); });
         }
     }
+}
+
+void LevelSelectorOverlay::apply_theme_defaults(const Theme& theme) {
+    MenuOptionOverlay::apply_theme_defaults(theme);
+
+    configure_all_styles([&theme](Style& style) {
+        style.border(BorderEdge{0.0F, BorderType::None});
+        style.padding({});
+        style.background_color(theme.background_color);
+    });
 }

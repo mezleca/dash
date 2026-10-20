@@ -9,7 +9,6 @@
 
 #include <imgui-ui/surface.hpp>
 #include <imgui-ui/widgets/text.hpp>
-#include <algorithm>
 #include <array>
 
 using namespace ui;
@@ -23,6 +22,10 @@ GameUI::GameUI(Dash& game) : LayerContainer("game-ui"), m_game(game) {
         m_screens.emplace(GameScreen::Menu, &menu);
         menu.set_size({grow(), grow()});
         menu.set_content_alignment(Anchor::Center);
+        menu.configure_all_styles([&game](Style& style) {
+            style.background_color(game.surface().theme().background_color);
+            style.border_radius(0.0f);
+        });
         menu.add<TextWidget>("DASH").set_font(m_game.surface().get_primary_font(), 56);
 
         auto& actions = menu.add<Container>("menu-actions", StackDirection::Horizontal);
@@ -82,25 +85,6 @@ GameUI::GameUI(Dash& game) : LayerContainer("game-ui"), m_game(game) {
         gameplay.set_visible(false);
 
         m_screens.emplace(GameScreen::Editor, &add<EditorOverlay>(m_game, [this](UiEvent& event) { this->event(event); }));
-
-        auto& pause = add<MenuOptionOverlay>("pause");
-        m_screens.emplace(GameScreen::Pause, &pause);
-        pause.set_content_alignment(Anchor::Center);
-        auto& pause_actions = pause.add<Container>("pause-actions");
-        pause_actions.set_size({fit(), fit()});
-        pause_actions.set_content_alignment(Anchor::Center);
-        pause_actions.set_spacing(12.0F);
-        pause_actions.add<TextWidget>("paused");
-        pause_actions.add<MenuButton>("resume").on_click([this] {
-            if (m_game.level_state() == LevelState::EDITING) {
-                hide_screen(GameScreen::Pause);
-                return;
-            }
-
-            resume_level();
-        });
-        pause_actions.add<MenuButton>("settings").on_click([this] { show_screen(GameScreen::Settings); });
-        pause_actions.add<MenuButton>("main menu").on_click([this] { return_to_menu(); });
 
         auto& death = add<MenuOptionOverlay>("death", TransitionSpec{0.15F, easing::out_cubic}, false);
         m_screens.emplace(GameScreen::Death, &death);
@@ -188,20 +172,6 @@ void GameUI::show_levels(bool editor) {
     show_screen(GameScreen::Levels);
 }
 
-void GameUI::pause_level() {
-    if (m_game.level_state() != LevelState::PLAYING) return;
-
-    m_game.set_paused(true);
-    show_screen(GameScreen::Pause);
-}
-
-void GameUI::resume_level() {
-    if (!m_game.is_paused()) return;
-
-    m_game.set_paused(false);
-    show_screen(GameScreen::Gameplay);
-}
-
 void GameUI::return_to_menu() {
     if (m_game.current_level() != nullptr) {
         m_game.unload_current_level();
@@ -281,14 +251,13 @@ void GameUI::event(UiEvent& event) {
     }
 
     if (screen == GameScreen::Gameplay) {
-        if (escape) pause_level();
+        return;
     } else if (screen == GameScreen::Editor) {
-        if (escape && !m_game.editor().clear_selection()) show_screen(GameScreen::Pause);
-    } else if (screen == GameScreen::Pause) {
-        if (m_game.level_state() == LevelState::EDITING) {
-            hide_screen(GameScreen::Pause);
+        LevelEditor* editor = m_game.editor();
+        if (escape && editor != nullptr) {
+            editor->clear_selection();
         } else {
-            resume_level();
+            return;
         }
     } else {
         hide_screen(screen);

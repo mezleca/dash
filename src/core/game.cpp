@@ -1,10 +1,6 @@
 #include "game.hpp"
 #include "components/rigid-body.hpp"
 
-#include <imgui-ui/backends/opengl/texture-loader.hpp>
-#include <imgui-ui/backends/raylib/backend.hpp>
-#include <imgui-ui/runtime.hpp>
-
 #include <raylib.h>
 #include <algorithm>
 #include <cstdlib>
@@ -48,20 +44,18 @@ void Game::remove_pending_objects() {
     }
 }
 
-void Game::update_objects(float frametime) {
+void Game::update() {
     const std::size_t count = m_objects.size();
 
     for (std::size_t index = 0; index < count; ++index) {
         GameObject* object = m_objects[index].get();
         if (!object->m_removed) {
-            object->update(frametime);
+            object->update(GetFrameTime());
         }
     }
 }
 
-void Game::render_objects() {
-    m_camera.center_viewport({static_cast<float>(m_window.width), static_cast<float>(m_window.height)});
-
+void Game::render() {
     const auto compare = [](const GameObject* a, const GameObject* b) { return a->z_order() < b->z_order(); };
 
     // order GameObject by its index before rendering
@@ -69,44 +63,84 @@ void Game::render_objects() {
         std::stable_sort(m_render_objects.begin(), m_render_objects.end(), compare);
     }
 
-    BeginMode2D(m_camera.view());
-    {
-        const std::size_t count = m_render_objects.size();
-        for (std::size_t index = 0; index < count; ++index) {
-            // skip pending and not visible game objects
-            const GameObject* object = m_render_objects[index];
-            if (object->m_removed || !object->visible) {
-                continue;
-            }
-
-            const auto* body = object->get_component<RigidBody>();
-            const Rectangle bounds = body != nullptr ? body->get_bounding_box() : Rectangle{};
-            object->render(bounds, m_camera.view());
+    for (const auto& viewport : m_viewports) {
+        if (viewport == nullptr) {
+            continue;
         }
+
+        viewport->begin();
+        {
+            render_viewport(*viewport);
+        }
+        viewport->end();
+    }
+}
+
+void Game::render_viewport(Viewport& viewport) {
+    auto& camera = viewport.camera();
+
+    BeginMode2D(camera.view());
+    for (const GameObject* object : m_render_objects) {
+        if (object->m_removed || !object->visible) {
+            continue;
+        }
+
+        if ((object->render_mask() & viewport.mask()) == 0) {
+            continue;
+        }
+
+        const auto* body = object->get_component<RigidBody>();
+        const Rectangle bounds = body != nullptr ? body->get_bounding_box() : Rectangle{};
+        object->render(bounds, camera.view(), viewport.size());
     }
     EndMode2D();
+}
+
+Viewport& Game::create_viewport(ViewportId id) {
+    auto viewport = std::make_unique<Viewport>(id);
+    auto& ref = *viewport;
+    m_viewports.push_back(std::move(viewport));
+    return ref;
+}
+
+Viewport* Game::get_viewport(size_t index) const {
+    if (index >= m_viewports.size()) {
+        return nullptr;
+    }
+
+    return m_viewports.at(index).get();
+}
+
+CameraView* Game::camera_for(const GameObject& object) const {
+    for (const auto& viewport : m_viewports) {
+        if (viewport != nullptr && (object.render_mask() & viewport->mask()) != 0) {
+            return &viewport->camera();
+        }
+    }
+
+    return nullptr;
 }
 
 void Game::run() {
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
+    // configure raylib
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(m_window.width, m_window.height, m_window.title.c_str());
     InitAudioDevice();
     SetTargetFPS(60);
     SetExitKey(0);
 
-    ui::Runtime runtime({.texture_loader = std::make_unique<ui::OpenGLTextureLoader>()});
-    ui::SurfaceConfig config;
-    config.backend = std::make_unique<ui::RaylibBackend>();
-    config.enable_debugger = true;
-    m_ui = std::make_unique<ui::Surface>(runtime, std::move(config));
+    for (const auto& viewport : m_viewports) {
+        if (viewport != nullptr && viewport->size().x <= 0.0f) {
+            viewport->set_size({static_cast<float>(m_window.width), static_cast<float>(m_window.height)});
+        }
+    }
 
     on_initialize();
 
-    while (!m_ui->is_done()) {
+    while (!m_done) {
         update_simulation_timestep();
-        m_ui->process_events();
 
         if (IsWindowResized()) {
             m_window.width = GetScreenWidth();
@@ -114,24 +148,35 @@ void Game::run() {
         }
 
         const float frametime = GetFrameTime();
-        // game logic changes levels and runs behaviours before their components update.
-        on_update(frametime);
-        update_objects(frametime);
 
-        m_ui->begin_frame();
-        render_objects();
-        m_ui->update(frametime);
-        m_ui->draw();
-        m_ui->end_frame();
+        // update GameObjects
+        {
+            on_update(frametime);
+            update();
+        }
+
+        // render GameObjects
+        {
+            render();
+            on_render();
+        }
+
         remove_pending_objects();
     }
 
     on_shutdown();
+
+    // clear and remove objects
     clear_objects();
     remove_pending_objects();
-    m_ui.reset();
+
+    // shutdown raylib
     CloseAudioDevice();
     CloseWindow();
+}
+
+void Game::exit() {
+    m_done = true;
 }
 
 void Game::update_simulation_timestep() {

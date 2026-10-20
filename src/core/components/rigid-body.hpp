@@ -2,7 +2,6 @@
 
 #include "component.hpp"
 #include "core/physics/world.hpp"
-#include "core/physics/shape.hpp"
 
 class RigidBody : public Component {
 public:
@@ -10,10 +9,6 @@ public:
         GameObject& object, World& world, b2BodyType body_type = b2_staticBody, bool sensor = false, bool collidable = true
     );
     ~RigidBody() override;
-    RigidBody(const RigidBody&) = delete;
-    RigidBody& operator=(const RigidBody&) = delete;
-    RigidBody(RigidBody&&) = delete;
-    RigidBody& operator=(RigidBody&&) = delete;
 
     bool collision_enabled() const;
     void set_collision_enabled(bool enabled);
@@ -25,11 +20,16 @@ public:
     Vector2 get_position() const;
     void set_position(float x, float y);
 
+    float get_rotation() const;
+    void set_rotation(float degrees);
+
     Vector2 get_velocity() const;
     void set_velocity(float x, float y);
 
     Rectangle get_bounding_box() const;
+    Rectangle get_world_bounding_box() const;
     Vector2 get_dimensions() const;
+
     b2ShapeId get_shape() const {
         return m_shape;
     }
@@ -56,12 +56,15 @@ public:
 
 private:
     b2ShapeDef shape_definition(bool sensor);
+    void update_shape();
 
     friend class World;
 
     World& m_world;
     b2BodyId m_body = {};
     b2ShapeId m_shape = {};
+    PhysicsShape m_base_shape = b2Polygon{};
+    float m_rotation = 0.0f;
     bool m_grounded = false;
     bool m_collidable = true;
 };

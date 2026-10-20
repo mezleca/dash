@@ -1,6 +1,7 @@
 #pragma once
 
 #include "components/component.hpp"
+#include "viewport/viewport.hpp"
 
 #include <memory>
 #include <filesystem>
@@ -40,6 +41,14 @@ public:
         return m_components;
     }
 
+    ViewportMask render_mask() const {
+        return m_render_mask;
+    }
+
+    void set_render_mask(ViewportMask mask) {
+        m_render_mask = mask;
+    }
+
     int z_order() const {
         return z_index;
     }
@@ -59,7 +68,7 @@ public:
     void remove_component(Component& component);
 
     void update(float frametime);
-    void render(Rectangle bounds, const Camera2D& camera) const;
+    void render(Rectangle bounds, const Camera2D& camera, Vector2 viewport_size) const;
 
     virtual void serialize(Serializer& serializer) const;
     virtual void deserialize(Deserializer& deserializer, const std::filesystem::path& directory);
@@ -83,6 +92,7 @@ protected:
 private:
     friend class Game;
 
+    ViewportMask m_render_mask = ALL_VIEWPORTS;
     bool m_removed = false;
     std::vector<std::unique_ptr<Component>> m_components;
 };

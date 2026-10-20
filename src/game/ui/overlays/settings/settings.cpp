@@ -1,9 +1,9 @@
 #include "settings.hpp"
 #include "game/dash.hpp"
+#include "game/ui/widgets/dash-number-input.hpp"
 
 #include <imgui-ui/widgets/checkbox.hpp>
 #include <imgui-ui/widgets/box.hpp>
-#include <imgui-ui/widgets/number-input.hpp>
 #include <imgui-ui/widgets/text.hpp>
 
 using namespace ui;
@@ -24,9 +24,10 @@ SettingsOverlay::SettingsOverlay(Dash& game, std::string id) : MenuOptionOverlay
 
     auto& options = add<Container>("settings-options");
     options.set_size({grow(), fit()});
-    options.set_spacing(12.0F);
+    options.set_spacing(8.0F);
 
-    auto& volume = options.add<NumberInputWidget>(m_volume, "music volume");
+    auto& volume = options.add<DashNumberInput<int>>(m_volume);
+    volume.set_label("music volume");
     volume.set_size({px(300), fit()});
     volume.set_range(0, 100);
     volume.on_change([this] { m_game.set_music_volume(m_volume); });

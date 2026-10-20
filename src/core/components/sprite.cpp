@@ -1,4 +1,6 @@
 #include "sprite.hpp"
+#include "rigid-body.hpp"
+#include "core/object.hpp"
 
 #include <cmath>
 #include <rlgl.h>
@@ -38,7 +40,7 @@ void Sprite::load_texture(const char* location) {
     m_texture_location = location;
 }
 
-void Sprite::render(Rectangle bounds, const Camera2D&) const {
+void Sprite::render(Rectangle bounds, const Camera2D&, Vector2) const {
     bounds.x += bounds.width / 2.0f;
     bounds.y += bounds.height / 2.0f;
     render_centered(bounds);
@@ -139,5 +141,9 @@ void Sprite::deserialize(Deserializer& deserializer, const std::filesystem::path
         m_texture_location = texture;
     } else {
         load_texture("");
+    }
+
+    if (auto* body = object().get_component<RigidBody>(); body != nullptr && body->get_body_type() != b2_dynamicBody) {
+        body->set_rotation(rotation);
     }
 }

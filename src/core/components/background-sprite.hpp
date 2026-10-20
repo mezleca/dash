@@ -6,7 +6,7 @@ class BackgroundSprite : public Sprite {
 public:
     explicit BackgroundSprite(GameObject& object, bool fill_viewport = false);
 
-    void render(Rectangle bounds, const Camera2D& camera) const override;
+    void render(Rectangle bounds, const Camera2D& camera, Vector2 viewport_size) const override;
 
     void serialize(Serializer& serializer) const override;
     void deserialize(Deserializer& deserializer, const std::filesystem::path& directory) override;

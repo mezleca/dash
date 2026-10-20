@@ -1,25 +1,39 @@
 #include "dash.hpp"
 #include "ui/game-ui.hpp"
-#include "core/math.hpp"
+#include "ui/theme.hpp"
 
+#include <imgui-ui/runtime.hpp>
+#include <imgui-ui/backends/opengl/texture-loader.hpp>
+#include <imgui-ui/backends/raylib/backend.hpp>
 #include <imgui-ui/diagnostics/debugger.hpp>
 #include <imgui-ui/input/router.hpp>
-#include <imgui-ui/runtime.hpp>
 #include <imgui-ui/layout/container.hpp>
 #include <iostream>
 #include <raylib.h>
 
 using namespace ui;
 
-constexpr float DEATH_ZOOM_MULTIPLIER = 1.12f;
-constexpr float DEATH_ROTATION_OFFSET = 5.0f;
-
 Dash::Dash() : Game({"dash", 1280, 720}) {
-    camera().view().zoom = DEFAULT_CAMERA_ZOOM;
+    // create the default viewport
+    auto& viewport = create_viewport(0);
+    viewport.camera().view().zoom = DEFAULT_CAMERA_ZOOM;
+
     m_settings = std::make_unique<SettingsManager>(*this);
 }
 
+Dash::~Dash() = default;
+
 void Dash::on_initialize() {
+    // the raylib backend needs the window and graphics context created by Game::run.
+    ui::RuntimeConfig runtime_config;
+    runtime_config.texture_loader = std::make_unique<ui::OpenGLTextureLoader>();
+    m_runtime = std::make_unique<ui::Runtime>(std::move(runtime_config));
+
+    ui::SurfaceConfig config;
+    config.backend = std::make_unique<ui::RaylibBackend>();
+    config.enable_debugger = true;
+    m_ui = std::make_unique<ui::Surface>(*m_runtime, std::move(config));
+
     if (!m_settings->load()) {
         std::cerr << "[game] warning: settings could not be loaded\n";
     }
@@ -57,30 +71,46 @@ void Dash::on_initialize() {
     }
 
     m_settings->update_levels_progress();
-
     build_ui();
 }
 
+CameraView& Dash::level_camera() const {
+    if (m_current_level != nullptr) {
+        if (auto* camera = camera_for(*m_current_level)) {
+            return *camera;
+        }
+    }
+
+    return get_viewport(0)->camera();
+}
+
 void Dash::on_update(float frametime) {
+    m_ui->process_events();
+    if (m_ui->is_done()) {
+        exit();
+        return;
+    }
+
+    // the gameplay viewport fills the window outside the editor.
+    const bool editing = m_current_level != nullptr && m_current_level->state() == LevelState::EDITING;
+    if (!editing) {
+        if (auto* viewport = get_viewport(0)) {
+            viewport->set_position({});
+            viewport->set_size({static_cast<float>(window().width), static_cast<float>(window().height)});
+        }
+    }
+
+    // early return if we're not in a level
     if (m_current_level == nullptr || m_current_level->state() == LevelState::INVALID) {
         return;
     }
 
-    if (m_current_level->state() == LevelState::EDITING) {
+    if (editing && m_editor != nullptr) {
         const Vector2 pointer = GetMousePosition();
-        m_editor.update(camera(), *m_current_level, m_game_ui->pointer_over_ui({pointer.x, pointer.y}), is_debugger_open());
+        m_editor->update(m_game_ui->pointer_over_ui({pointer.x, pointer.y}), is_debugger_open());
     }
 
-    if (m_current_level->update()) {
-        finish_level();
-    }
-
-    if (m_current_level->state() == LevelState::DEATH) {
-        const float progress = m_current_level->death_animation_progress();
-        camera().view().zoom = d_math::lerp(DEFAULT_CAMERA_ZOOM, DEFAULT_CAMERA_ZOOM * DEATH_ZOOM_MULTIPLIER, progress);
-        camera().view().rotation =
-            d_math::lerp(DEFAULT_CAMERA_ROTATION, DEFAULT_CAMERA_ROTATION + DEATH_ROTATION_OFFSET, progress);
-    }
+    m_current_level->update();
 
     // update level behaviours and remove completed ones before entity components run.
     if (m_current_level->state() != LevelState::DEATH) {
@@ -88,10 +118,25 @@ void Dash::on_update(float frametime) {
     }
 }
 
+void Dash::on_render() {
+    m_ui->begin_frame();
+
+    for (std::size_t index = 0; index < viewport_count(); ++index) {
+        if (auto* viewport = get_viewport(index)) {
+            viewport->draw();
+        }
+    }
+
+    m_ui->update(GetFrameTime());
+    m_ui->draw();
+    m_ui->end_frame();
+}
+
 void Dash::build_ui() {
     auto& runtime = surface().runtime();
     auto* font = runtime.fonts().add("MainFont", "resources/fonts/Baloo-Regular.ttf");
 
+    surface().set_theme(make_dash_theme());
     surface().set_primary_font(font);
     surface().debugger()->set_font("MainFont", 24);
 
@@ -101,11 +146,17 @@ void Dash::build_ui() {
     m_game_ui = &root.add<GameUI>(*this);
     surface().input_router().on_event([this](UiEvent& event) {
         if (event.type != EventType::PointerDown || event.button != PointerButton::Left || m_current_level == nullptr ||
-            m_current_level->state() != LevelState::EDITING || is_debugger_open() || m_game_ui->pointer_over_ui(event.position)) {
+            m_current_level->state() != LevelState::EDITING || m_editor == nullptr || is_debugger_open() ||
+            m_game_ui->pointer_over_ui(event.position)) {
             return;
         }
 
-        m_editor.pointer_down(camera(), *m_current_level, {event.position.x, event.position.y});
+        auto* viewport = get_viewport(0);
+        if (viewport == nullptr || !viewport->contains_mouse()) {
+            return;
+        }
+
+        m_editor->pointer_down(viewport->mouse_position());
     });
 }
 
@@ -131,20 +182,21 @@ bool Dash::load_level(DashLevel& level, bool editor) {
         }
     }
 
-    camera().view().zoom = DEFAULT_CAMERA_ZOOM;
-    camera().view().rotation = DEFAULT_CAMERA_ROTATION;
+    auto& camera = level_camera();
+    camera.view().zoom = DEFAULT_CAMERA_ZOOM;
+    camera.view().rotation = DEFAULT_CAMERA_ROTATION;
     m_editor.reset();
 
     if (editor) {
-        camera().set_target(level.player_start());
+        camera.set_target(level.player_start());
     } else {
         level.spawn_player(m_settings->godmode(), free_mode());
-        level.player()->update_camera(camera(), true);
+        level.player()->update_camera(camera, true);
         level.set_music_volume(static_cast<float>(m_settings->volume()) / 100.0f);
 
         if (!level.load_music()) {
             level.unload();
-            camera().set_target({});
+            camera.set_target({});
             return false;
         }
     }
@@ -161,8 +213,9 @@ bool Dash::start_level() {
         return false;
     }
 
-    camera().view().zoom = DEFAULT_CAMERA_ZOOM;
-    camera().view().rotation = DEFAULT_CAMERA_ROTATION;
+    auto& camera = level_camera();
+    camera.view().zoom = DEFAULT_CAMERA_ZOOM;
+    camera.view().rotation = DEFAULT_CAMERA_ROTATION;
     m_editor.reset();
     reset_simulation_clock();
 
@@ -171,13 +224,18 @@ bool Dash::start_level() {
     // configure editor.
     if (m_current_level->state() == LevelState::EDITING) {
         // TOFIX: use latest editing position instead of player start.
-        camera().set_target(m_current_level->player_start());
+        camera.set_target(m_current_level->player_start());
+
+        if (auto* viewport = get_viewport(0)) {
+            m_editor = std::make_unique<LevelEditor>(*viewport, *m_current_level);
+        }
+
         return true;
     }
 
     // configure player and focus the camera.
     m_current_level->spawn_player(m_settings->godmode(), free_mode());
-    player()->update_camera(camera(), true);
+    player()->update_camera(camera, true);
 
     // sync level with saved data.
     m_current_level->set_music_volume(static_cast<float>(m_settings->volume()) / 100.0f);
@@ -197,11 +255,11 @@ void Dash::unload_current_level() {
 
     m_current_level->unload();
 
-    camera().view().zoom = DEFAULT_CAMERA_ZOOM;
-    camera().view().rotation = DEFAULT_CAMERA_ROTATION;
-    camera().set_target({});
+    auto& camera = level_camera();
+    camera.view().zoom = DEFAULT_CAMERA_ZOOM;
+    camera.view().rotation = DEFAULT_CAMERA_ROTATION;
+    camera.set_target({});
 
-    // reset editor camera to default values.
     m_editor.reset();
 
     reset_simulation_clock();
@@ -234,6 +292,14 @@ bool Dash::has_finished_level() const {
     return m_current_level != nullptr && m_current_level->finished();
 }
 
+void Dash::return_to_menu() {
+    if (m_current_level != nullptr) {
+        unload_current_level();
+    }
+
+    m_game_ui->show_screen(GameScreen::Menu);
+}
+
 void Dash::finish_level() {
     if (m_current_level == nullptr || m_current_level->state() != LevelState::PLAYING || player() == nullptr ||
         !player()->alive())
@@ -259,8 +325,9 @@ void Dash::kill_player() {
     player()->freeze();
 
     // start death animation
-    camera().view().zoom = DEFAULT_CAMERA_ZOOM;
-    camera().view().rotation = DEFAULT_CAMERA_ROTATION;
+    auto& camera = level_camera();
+    camera.view().zoom = DEFAULT_CAMERA_ZOOM;
+    camera.view().rotation = DEFAULT_CAMERA_ROTATION;
     m_current_level->begin_death();
     m_game_ui->show_screen(GameScreen::Death);
 }
@@ -302,7 +369,9 @@ void Dash::on_fixed_update(float timestep) {
 
     // focus camera on player.
     if (m_current_level->state() == LevelState::PLAYING) {
-        current_player->update_camera(camera());
+        if (auto* camera = camera_for(*current_player)) {
+            current_player->update_camera(*camera);
+        }
     }
 }
 
@@ -317,4 +386,6 @@ void Dash::on_shutdown() {
 
     m_levels.clear();
     m_game_ui = nullptr;
+    m_ui.reset();
+    m_runtime.reset();
 }

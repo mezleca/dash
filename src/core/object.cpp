@@ -64,12 +64,12 @@ void GameObject::update(float frametime) {
     }
 }
 
-void GameObject::render(Rectangle bounds, const Camera2D& camera) const {
+void GameObject::render(Rectangle bounds, const Camera2D& camera, Vector2 viewport_size) const {
     if (!visible) return;
 
     const size_t count = m_components.size();
     for (size_t i = 0; i < count; ++i) {
-        m_components[i]->render(bounds, camera);
+        m_components[i]->render(bounds, camera, viewport_size);
     }
 }
 

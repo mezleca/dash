@@ -16,14 +16,9 @@ class Sprite : public Component {
 public:
     explicit Sprite(GameObject& object, SpriteType type = SpriteType::SQUARE, Color tint = WHITE);
     ~Sprite() override;
-    Sprite(const Sprite&) = delete;
-    Sprite& operator=(const Sprite&) = delete;
-    Sprite(Sprite&&) = delete;
-    Sprite& operator=(Sprite&&) = delete;
 
     void load_texture(const char* location);
-
-    void render(Rectangle bounds, const Camera2D& camera) const override;
+    void render(Rectangle bounds, const Camera2D& camera, Vector2 viewport_size) const override;
 
     void serialize(Serializer& serializer) const override;
     void deserialize(Deserializer& deserializer, const std::filesystem::path& directory) override;

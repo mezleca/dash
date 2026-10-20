@@ -1,6 +1,5 @@
 #pragma once
 
-#include "core/components/rigid-body.hpp"
 #include "game/entity/entity.hpp"
 #include "game/paths.hpp"
 #include "behaviour.hpp"
@@ -114,7 +113,7 @@ public:
     void set_music_pitch(float pitch);
     void set_music_volume(float volume);
 
-    bool update();
+    void update();
     float death_animation_progress() const;
     void update_behaviours(float frametime);
     void add_behaviour(std::unique_ptr<Behaviour> behaviour);

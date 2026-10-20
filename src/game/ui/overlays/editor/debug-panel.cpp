@@ -27,7 +27,7 @@ DebugPanel::DebugPanel(Dash& game) : LayerContainer("editor-debug-panel"), m_gam
 }
 
 void DebugPanel::on_update(float frametime) {
-    const auto& camera = m_game.camera().view();
+    const auto& camera = m_game.get_viewport(0)->camera().view();
     const DashLevel* level = m_game.current_level();
     const std::size_t object_count = level != nullptr ? level->objects().size() : 0;
 

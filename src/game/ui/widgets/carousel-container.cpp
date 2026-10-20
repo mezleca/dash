@@ -1,9 +1,7 @@
 #include "carousel-container.hpp"
 #include "../../utils/utils.hpp"
-         "
 
 #include <algorithm>
-#include <iostream>
 #include <cmath>
 #include <raylib.h>
 #include <utility>
@@ -17,7 +15,15 @@ static bool is_carousel_item(const Node& node) {
 CarouselContainer::CarouselContainer(std::string id) : Container(std::move(id), StackDirection::Horizontal, "CarouselContainer") {
     set_size({grow(), grow()});
     set_spacing(20.0F);
-    configure_all_styles([](Style& style) { style.overflow(Overflow::Clip); });
+}
+
+void CarouselContainer::apply_theme_defaults(const Theme& theme) {
+    Container::apply_theme_defaults(theme);
+
+    configure_all_styles([&theme](Style& style) {
+        style.overflow(Overflow::Clip);
+        style.background_color(theme.background_color);
+    });
 }
 
 Container& CarouselContainer::set_spacing(float spacing) {
@@ -153,10 +159,11 @@ void CarouselContainer::mouse_release_event(UiEvent& input) {
 
     const float distance = input.position.x - press.x;
     if (std::abs(distance) >= m_stride * 0.25F) {
-        if (distance < 0.0F)
+        if (distance < 0.0F) {
             select(m_selected + 1);
-        else if (m_selected > 0)
+        } else if (m_selected > 0) {
             select(m_selected - 1);
+        }
     }
 
     input.prevent_default();

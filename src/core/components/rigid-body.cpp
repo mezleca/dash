@@ -1,8 +1,12 @@
 #include "rigid-body.hpp"
 #include "core/object.hpp"
+#include "core/physics/shape.hpp"
 
+#include <cmath>
 #include <iostream>
 #include <stdexcept>
+#include <type_traits>
+#include <variant>
 
 RigidBody::RigidBody(GameObject& object, World& world, b2BodyType physics_type, bool sensor, bool collidable)
     : Component(object, ComponentId::RigidBody), m_world(world), m_collidable(collidable) {
@@ -14,8 +18,8 @@ RigidBody::RigidBody(GameObject& object, World& world, b2BodyType physics_type, 
     m_body = b2CreateBody(m_world.id(), &definition);
 
     const b2ShapeDef shape_def = shape_definition(sensor);
-    const b2Polygon box = make_box_shape(64.0f, 64.0f);
-    m_shape = b2CreatePolygonShape(m_body, &shape_def, &box);
+    m_base_shape = make_box_shape(64.0f, 64.0f);
+    m_shape = b2CreatePolygonShape(m_body, &shape_def, &std::get<b2Polygon>(m_base_shape));
 
     m_world.add(*this);
 }
@@ -40,37 +44,40 @@ Vector2 RigidBody::get_dimensions() const {
     return {bounds.width, bounds.height};
 }
 
-Rectangle RigidBody::get_bounding_box() const {
-    const b2WorldTransform transform = b2Body_GetTransform(m_body);
-    b2AABB bounds;
-
-    // box2d's cached aabb includes speculative collision padding.
-    switch (b2Shape_GetType(m_shape)) {
-        case b2_polygonShape: {
-            const b2Polygon polygon = b2Shape_GetPolygon(m_shape);
-            bounds = b2ComputePolygonAABB(&polygon, transform);
-            break;
-        }
-        case b2_circleShape: {
-            const b2Circle circle = b2Shape_GetCircle(m_shape);
-            bounds = b2ComputeCircleAABB(&circle, transform);
-            break;
-        }
-        case b2_capsuleShape: {
-            const b2Capsule capsule = b2Shape_GetCapsule(m_shape);
-            bounds = b2ComputeCapsuleAABB(&capsule, transform);
-            break;
-        }
-        default:
-            throw std::logic_error("unsupported entity shape");
-    }
-
+static Rectangle to_rectangle(const b2AABB& bounds) {
     // convert the tight box2d bounds from meters to raylib pixels.
     return {
         bounds.lowerBound.x * PHYSICS_PIXELS_PER_METER, bounds.lowerBound.y * PHYSICS_PIXELS_PER_METER,
         (bounds.upperBound.x - bounds.lowerBound.x) * PHYSICS_PIXELS_PER_METER,
         (bounds.upperBound.y - bounds.lowerBound.y) * PHYSICS_PIXELS_PER_METER
     };
+}
+
+Rectangle RigidBody::get_bounding_box() const {
+    b2WorldTransform transform = b2Body_GetTransform(m_body);
+
+    // rendering applies the sprite rotation around this unrotated rectangle.
+    transform.q = b2Rot_identity;
+
+    const b2AABB bounds = std::visit(
+        [&transform](const auto& shape) {
+            using T = std::decay_t<decltype(shape)>;
+            if constexpr (std::is_same_v<T, b2Polygon>) {
+                return b2ComputePolygonAABB(&shape, transform);
+            } else if constexpr (std::is_same_v<T, b2Circle>) {
+                return b2ComputeCircleAABB(&shape, transform);
+            } else {
+                return b2ComputeCapsuleAABB(&shape, transform);
+            }
+        },
+        m_base_shape
+    );
+
+    return to_rectangle(bounds);
+}
+
+Rectangle RigidBody::get_world_bounding_box() const {
+    return to_rectangle(b2Body_ComputeAABB(m_body));
 }
 
 b2BodyType RigidBody::get_body_type() const {
@@ -106,6 +113,16 @@ void RigidBody::set_position(float x, float y) {
     m_grounded = false;
 }
 
+float RigidBody::get_rotation() const {
+    return m_rotation;
+}
+
+void RigidBody::set_rotation(float degrees) {
+    m_rotation = degrees;
+    update_shape();
+    m_grounded = false;
+}
+
 void RigidBody::set_velocity(float x, float y) {
     b2Body_SetLinearVelocity(m_body, {x / PHYSICS_PIXELS_PER_METER, y / PHYSICS_PIXELS_PER_METER});
 }
@@ -126,21 +143,75 @@ b2ShapeDef RigidBody::shape_definition(bool sensor) {
 }
 
 void RigidBody::set_shape(const b2Polygon& polygon) {
-    b2Shape_SetPolygon(m_shape, &polygon);
-
-    // geometry setters do not recalculate body mass.
-    b2Body_UpdateMassFromShapes(m_body);
-    m_grounded = false;
+    m_base_shape = polygon;
+    update_shape();
 }
 
 void RigidBody::set_shape(const b2Circle& circle) {
-    b2Shape_SetCircle(m_shape, &circle);
-    b2Body_UpdateMassFromShapes(m_body);
-    m_grounded = false;
+    m_base_shape = circle;
+    update_shape();
 }
 
 void RigidBody::set_shape(const b2Capsule& capsule) {
-    b2Shape_SetCapsule(m_shape, &capsule);
+    m_base_shape = capsule;
+    update_shape();
+}
+
+void RigidBody::update_shape() {
+    const float radians = m_rotation * (B2_PI / 180.0f);
+    const float cosine = std::cos(radians);
+    const float sine = std::sin(radians);
+
+    const auto rotate_vector = [cosine, sine](b2Vec2 vector) {
+        return b2Vec2{vector.x * cosine - vector.y * sine, vector.x * sine + vector.y * cosine};
+    };
+
+    const auto rotate = [&rotate_vector](b2Vec2 point, b2Vec2 pivot) {
+        const b2Vec2 rotated = rotate_vector({point.x - pivot.x, point.y - pivot.y});
+        return b2Vec2{pivot.x + rotated.x, pivot.y + rotated.y};
+    };
+
+    std::visit(
+        [&](const auto& shape) {
+            using T = std::decay_t<decltype(shape)>;
+            b2AABB bounds;
+            if constexpr (std::is_same_v<T, b2Polygon>) {
+                bounds = b2ComputePolygonAABB(&shape, b2Transform_identity);
+            } else if constexpr (std::is_same_v<T, b2Circle>) {
+                bounds = b2ComputeCircleAABB(&shape, b2Transform_identity);
+            } else {
+                bounds = b2ComputeCapsuleAABB(&shape, b2Transform_identity);
+            }
+
+            const b2Vec2 pivot = {
+                (bounds.lowerBound.x + bounds.upperBound.x) * 0.5f,
+                (bounds.lowerBound.y + bounds.upperBound.y) * 0.5f,
+            };
+
+            if constexpr (std::is_same_v<T, b2Polygon>) {
+                b2Polygon rotated = shape;
+                rotated.centroid = rotate(rotated.centroid, pivot);
+                for (int index = 0; index < rotated.count; ++index) {
+                    rotated.vertices[index] = rotate(rotated.vertices[index], pivot);
+                    rotated.normals[index] = rotate_vector(rotated.normals[index]);
+                }
+
+                b2Shape_SetPolygon(m_shape, &rotated);
+            } else if constexpr (std::is_same_v<T, b2Circle>) {
+                b2Circle rotated = shape;
+                rotated.center = rotate(rotated.center, pivot);
+                b2Shape_SetCircle(m_shape, &rotated);
+            } else {
+                b2Capsule rotated = shape;
+                rotated.center1 = rotate(rotated.center1, pivot);
+                rotated.center2 = rotate(rotated.center2, pivot);
+                b2Shape_SetCapsule(m_shape, &rotated);
+            }
+        },
+        m_base_shape
+    );
+
+    // geometry setters do not recalculate body mass.
     b2Body_UpdateMassFromShapes(m_body);
     m_grounded = false;
 }
@@ -199,22 +270,7 @@ void RigidBody::serialize(Serializer& serializer) const {
     serializer.field("is_sensor", is_sensor());
     serializer.field("collision_enabled", collision_enabled());
 
-    PhysicsShape shape;
-    switch (b2Shape_GetType(m_shape)) {
-        case b2_polygonShape:
-            shape = b2Shape_GetPolygon(m_shape);
-            break;
-        case b2_circleShape:
-            shape = b2Shape_GetCircle(m_shape);
-            break;
-        case b2_capsuleShape:
-            shape = b2Shape_GetCapsule(m_shape);
-            break;
-        default:
-            throw std::logic_error("unsupported entity shape");
-    }
-
-    serializer.field("shape", shape);
+    serializer.field("shape", m_base_shape);
 }
 
 void RigidBody::deserialize(Deserializer& deserializer, const std::filesystem::path&) {

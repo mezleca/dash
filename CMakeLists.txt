@@ -33,7 +33,7 @@ find_package(OpenGL REQUIRED)
 FetchContent_Declare(
     imgui-ui
     GIT_REPOSITORY https://github.com/mezleca/imgui-ui
-    GIT_TAG d162acde47eb9189b01a36f454d5c7b55cb4d591
+    GIT_TAG 83cc468a143c8b8fed65d7228e3ba5f1969efe61
 )
 FetchContent_MakeAvailable(imgui-ui)
 

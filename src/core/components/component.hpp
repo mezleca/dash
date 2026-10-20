@@ -25,7 +25,7 @@ public:
     }
 
     virtual void update(float) {}
-    virtual void render(Rectangle, const Camera2D&) const {}
+    virtual void render(Rectangle, const Camera2D&, Vector2) const {}
 
     ComponentId id() const {
         return m_id;

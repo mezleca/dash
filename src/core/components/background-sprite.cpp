@@ -5,12 +5,12 @@
 BackgroundSprite::BackgroundSprite(GameObject& object, bool fill_viewport)
     : Sprite(object, ComponentId::BackgroundSprite, SpriteType::SQUARE, WHITE), m_fill_viewport(fill_viewport) {}
 
-void BackgroundSprite::render(Rectangle bounds, const Camera2D& camera) const {
+void BackgroundSprite::render(Rectangle bounds, const Camera2D& camera, Vector2 viewport_size) const {
     Vector2 center = camera.target;
 
     if (m_fill_viewport) {
-        bounds.width = static_cast<float>(GetScreenWidth());
-        bounds.height = static_cast<float>(GetScreenHeight());
+        bounds.width = viewport_size.x;
+        bounds.height = viewport_size.y;
     } else {
         const Vector2 position = object().get_component<RigidBody>()->get_position();
         center.x += position.x;

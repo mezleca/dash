@@ -11,7 +11,6 @@ enum class GameScreen {
     Levels,
     Editor,
     Settings,
-    Pause,
     Death,
     Loading,
     Exit,
@@ -28,8 +27,6 @@ public:
     void show_levels(bool editor = false);
     void hide_screen(GameScreen screen);
     void hide_all_screens();
-    void pause_level();
-    void resume_level();
     void return_to_menu();
 
     GameScreen focused() const;

@@ -15,6 +15,8 @@
 #include <stdexcept>
 
 constexpr float DEATH_ANIMATION_DURATION = 1.0f; // in seconds
+constexpr float DEATH_ZOOM_MULTIPLIER = 1.12f;
+constexpr float DEATH_ROTATION_OFFSET = 5.0f;
 
 DashLevel::DashLevel(Dash& game) : Entity(EntityType::LEVEL), m_game(game) {}
 
@@ -48,33 +50,33 @@ void DashLevel::set_state(LevelState state) {
     }
 }
 
-bool DashLevel::update() {
-    if (m_music_loaded && m_state == LevelState::PLAYING) {
-        UpdateMusicStream(m_music);
-    }
-
+void DashLevel::update() {
     if (m_state == LevelState::EDITING) {
-        return false;
+        return;
     }
 
-    if (m_player == nullptr || m_level_end.x <= 0.0f || m_finished) {
-        return false;
+    if (m_player == nullptr || m_finished) {
+        return;
     }
 
     if (m_state == LevelState::DEATH) {
-        if (!m_finished_death_animation) update_death_animation();
-        return false;
+        update_death_animation();
+        return;
     }
 
-    if (m_state != LevelState::PLAYING) return false;
+    if (m_state != LevelState::PLAYING || m_level_end.x <= 0.0f) {
+        return;
+    }
 
-    m_current_progress = m_player->body().get_position().x / m_level_end.x * 100;
+    if (m_music_loaded) {
+        UpdateMusicStream(m_music);
+    }
+
+    // update level progress based on player position and level end (furthest object or a trigger)
+    m_current_progress = std::min(m_player->body().get_position().x / m_level_end.x * 100.0f, 100.0f);
     if (m_current_progress >= 100.0f) {
-        m_current_progress = 100.0f;
-        return true;
+        m_game.finish_level();
     }
-
-    return false;
 }
 
 float DashLevel::death_animation_progress() const {
@@ -293,15 +295,32 @@ void DashLevel::spawn_player(bool god_mode, bool free_mode) {
 }
 
 void DashLevel::update_death_animation() {
+    if (m_finished_death_animation) {
+        return;
+    }
+
     m_death_elapsed = std::min(m_death_elapsed + GetFrameTime(), DEATH_ANIMATION_DURATION);
     const float progress = death_animation_progress();
-    set_music_pitch(d_math::lerp(1.0f, 0.0f, progress));
-    set_music_volume(std::min(m_music_volume, d_math::lerp(m_death_start_volume, 0.0f, progress)));
 
-    if (m_death_elapsed >= DEATH_ANIMATION_DURATION && !m_finished_death_animation) {
+    if (m_music_loaded) {
+        UpdateMusicStream(m_music);
+        set_music_pitch(d_math::lerp(1.0f, 0.0f, progress));
+        set_music_volume(std::min(m_music_volume, d_math::lerp(m_death_start_volume, 0.0f, progress)));
+    }
+
+    CameraView* camera = m_game.camera_for(*this);
+    if (camera != nullptr) {
+        camera->view().zoom = d_math::lerp(DEFAULT_CAMERA_ZOOM, DEFAULT_CAMERA_ZOOM * DEATH_ZOOM_MULTIPLIER, progress);
+        camera->view().rotation =
+            d_math::lerp(DEFAULT_CAMERA_ROTATION, DEFAULT_CAMERA_ROTATION + DEATH_ROTATION_OFFSET, progress);
+    }
+
+    if (m_death_elapsed >= DEATH_ANIMATION_DURATION) {
         m_finished_death_animation = true;
         m_player->kill();
-        StopMusicStream(m_music);
+        if (m_music_loaded) {
+            StopMusicStream(m_music);
+        }
     }
 }
 

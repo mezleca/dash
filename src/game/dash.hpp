@@ -12,6 +12,8 @@
 
 constexpr Vector2 SPRITE_SIZE_HIGH = {128, 128};
 constexpr Vector2 SPRITE_SIZE_MEDIUM = {64, 64};
+constexpr float DEFAULT_CAMERA_ZOOM = 1.2f;
+constexpr float DEFAULT_CAMERA_ROTATION = 0.0f;
 
 class Spike;
 class DashLevel;
@@ -21,6 +23,7 @@ class GameUI;
 class Dash : public Game {
 public:
     Dash();
+    ~Dash() override;
 
     std::unordered_map<std::string, DashLevel*>& levels() {
         return m_levels;
@@ -42,8 +45,12 @@ public:
         return m_current_level;
     }
 
-    LevelEditor& editor() {
-        return m_editor;
+    LevelEditor* editor() {
+        return m_editor.get();
+    }
+
+    const LevelEditor* editor() const {
+        return m_editor.get();
     }
 
     SettingsManager& settings() {
@@ -66,6 +73,7 @@ public:
 
     void finish_level();
     void kill_player();
+    void return_to_menu();
 
     void set_music_volume(int volume);
     void set_godmode(bool enabled);
@@ -75,20 +83,30 @@ public:
         return m_settings->free_mode();
     }
 
-private:
-    static constexpr float DEFAULT_CAMERA_ZOOM = 1.2f;
-    static constexpr float DEFAULT_CAMERA_ROTATION = 0.0f;
+    ui::Surface& surface() const {
+        return *m_ui;
+    }
 
+    bool is_debugger_open() const {
+        return m_ui->debugger()->is_open();
+    }
+
+private:
     void build_ui();
+    CameraView& level_camera() const;
     void on_initialize() override;
     void on_fixed_update(float timestep) override;
     void on_update(float frametime) override;
+    void on_render() override;
     void on_shutdown() override;
     bool simulation_active() const override;
 
+    std::unique_ptr<ui::Runtime> m_runtime;
+    std::unique_ptr<ui::Surface> m_ui;
+
     std::unique_ptr<SettingsManager> m_settings;
     GameUI* m_game_ui = nullptr;
-    LevelEditor m_editor;
+    std::unique_ptr<LevelEditor> m_editor;
 
     DashLevel* m_current_level = nullptr;
     std::unordered_map<std::string, DashLevel*> m_levels;

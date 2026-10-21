@@ -1,6 +1,6 @@
 #pragma once
 
-#include <imgui-ui/widgets/button.hpp>
+#include "game/ui/controls.hpp"
 
 class DashLevel;
 namespace ui {
@@ -8,7 +8,7 @@ namespace ui {
     class TextWidget;
 } // namespace ui
 
-class LevelCard : public ui::ButtonWidget {
+class LevelCard : public DashButton {
 public:
     explicit LevelCard(const DashLevel& level);
 

@@ -30,8 +30,6 @@ protected:
                 .border_radius(5.0F)
                 .padding({2.0F, 2.0F});
         });
-
-
     }
 
 private:
@@ -54,7 +52,7 @@ private:
     ui::Color m_fill_color;
 };
 
-LevelCard::LevelCard(const DashLevel& level) : ButtonWidget("", {percent(50), percent(50)}), m_level(level) {
+LevelCard::LevelCard(const DashLevel& level) : DashButton("", {percent(50), percent(50)}), m_level(level) {
     m_content = &add<Container>("level-card-content");
     m_content->set_size({grow(), grow()});
     m_content->set_input_mode(InputMode::None);
@@ -95,7 +93,7 @@ void LevelCard::draw_children() {
 }
 
 void LevelCard::apply_theme_defaults(const Theme& theme) {
-    ButtonWidget::apply_theme_defaults(theme);
+    DashButton::apply_theme_defaults(theme);
     set_font(surface().get_primary_font(), 48);
     m_description->set_font(surface().get_primary_font(), 24);
 

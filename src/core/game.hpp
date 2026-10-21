@@ -4,8 +4,6 @@
 #include "viewport/viewport.hpp"
 #include "physics/world.hpp"
 
-#include <imgui-ui/surface.hpp>
-#include <imgui-ui/diagnostics/debugger.hpp>
 #include <memory>
 #include <string>
 #include <utility>

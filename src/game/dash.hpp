@@ -10,14 +10,10 @@
 #include <unordered_map>
 #include <memory>
 
-constexpr Vector2 SPRITE_SIZE_HIGH = {128, 128};
-constexpr Vector2 SPRITE_SIZE_MEDIUM = {64, 64};
 constexpr float DEFAULT_CAMERA_ZOOM = 1.2f;
 constexpr float DEFAULT_CAMERA_ROTATION = 0.0f;
 
-class Spike;
 class DashLevel;
-class Platform;
 class GameUI;
 
 class Dash : public Game {
@@ -66,7 +62,7 @@ public:
     bool is_paused() const;
     bool has_finished_level() const;
 
-    bool load_level(DashLevel& level, bool editor = false);
+    bool load_level(DashLevel& level, bool editor = false, bool force_free_mode = false);
     bool start_level();
     void unload_current_level();
     bool restart_current_level();
@@ -83,16 +79,7 @@ public:
         return m_settings->free_mode();
     }
 
-    ui::Surface& surface() const {
-        return *m_ui;
-    }
-
-    bool is_debugger_open() const {
-        return m_ui->debugger()->is_open();
-    }
-
 private:
-    void build_ui();
     CameraView& level_camera() const;
     void on_initialize() override;
     void on_fixed_update(float timestep) override;
@@ -101,13 +88,11 @@ private:
     void on_shutdown() override;
     bool simulation_active() const override;
 
-    std::unique_ptr<ui::Runtime> m_runtime;
-    std::unique_ptr<ui::Surface> m_ui;
-
     std::unique_ptr<SettingsManager> m_settings;
-    GameUI* m_game_ui = nullptr;
+    std::unique_ptr<GameUI> m_ui;
     std::unique_ptr<LevelEditor> m_editor;
 
     DashLevel* m_current_level = nullptr;
+    bool m_force_free_mode = false;
     std::unordered_map<std::string, DashLevel*> m_levels;
 };

@@ -1,5 +1,4 @@
 #include "carousel-container.hpp"
-#include "../../utils/utils.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -10,6 +9,12 @@ using namespace ui;
 
 static bool is_carousel_item(const Node& node) {
     return node.visible() && !node.removal_pending() && node.layout().in_flow();
+}
+
+static bool is_mouse_within_window() {
+    const Vector2 position = GetMousePosition();
+    return position.x >= 0 && position.x <= static_cast<float>(GetScreenWidth()) && position.y >= 0 &&
+           position.y <= static_cast<float>(GetScreenHeight());
 }
 
 CarouselContainer::CarouselContainer(std::string id) : Container(std::move(id), StackDirection::Horizontal, "CarouselContainer") {
@@ -120,7 +125,7 @@ void CarouselContainer::mouse_press_event(UiEvent& input) {
 }
 
 void CarouselContainer::mouse_move_event(UiEvent& input) {
-    if (!m_press || !utils::is_mouse_within_window()) return;
+    if (!m_press || !is_mouse_within_window()) return;
 
     const float distance = input.position.x - m_press->x;
     if (!m_press->dragging && std::abs(distance) < 8.0F) return;

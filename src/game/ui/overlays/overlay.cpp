@@ -1,11 +1,11 @@
-#include "option-overlay.hpp"
+#include "overlay.hpp"
 
 #include <imgui-ui/surface.hpp>
 #include <utility>
 
 using namespace ui;
 
-MenuOptionOverlay::MenuOptionOverlay(std::string id, TransitionSpec transition, bool animate_scale)
+Overlay::Overlay(std::string id, TransitionSpec transition, bool animate_scale)
     : LayerContainer(std::move(id)), m_transition(transition), m_animate_scale(animate_scale) {
     set_size({fit(), fit()});
     set_anchor(Anchor::Center);
@@ -24,15 +24,15 @@ MenuOptionOverlay::MenuOptionOverlay(std::string id, TransitionSpec transition, 
     });
 }
 
-void MenuOptionOverlay::on_key_press(InputCallback callback) {
+void Overlay::on_key_press(InputCallback callback) {
     m_on_key_press = std::move(callback);
 }
 
-void MenuOptionOverlay::key_press_event(UiEvent& event) {
+void Overlay::key_press_event(UiEvent& event) {
     if (m_on_key_press) m_on_key_press(event);
 }
 
-void MenuOptionOverlay::show() {
+void Overlay::show() {
     cancel_animations();
     set_input_enabled(true);
     set_visible(true);
@@ -48,7 +48,7 @@ void MenuOptionOverlay::show() {
         .to(StyleAnimationProperty::Scale, ImVec2{1.0F, 1.0F}, m_transition);
 }
 
-void MenuOptionOverlay::hide(bool scale) {
+void Overlay::hide(bool scale) {
     cancel_animations();
     set_input_enabled(false);
     fade_out(m_transition);
@@ -61,7 +61,7 @@ void MenuOptionOverlay::hide(bool scale) {
     sequence.delay(m_transition.duration).end([this] { set_visible(false); });
 }
 
-void MenuOptionOverlay::apply_theme_defaults(const Theme& theme) {
+void Overlay::apply_theme_defaults(const Theme& theme) {
     LayerContainer::apply_theme_defaults(theme);
     set_font(surface().get_primary_font(), 28);
 }

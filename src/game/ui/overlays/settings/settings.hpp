@@ -1,15 +1,12 @@
 #pragma once
 
-#include "../option-overlay.hpp"
+#include "../overlay.hpp"
 
 class Dash;
 
-class SettingsOverlay : public MenuOptionOverlay {
+class SettingsOverlay : public Overlay {
 public:
     explicit SettingsOverlay(Dash& game, std::string id = "default");
-
-protected:
-    ImGuiWindowFlags child_window_flags() const override;
 
 private:
     Dash& m_game;

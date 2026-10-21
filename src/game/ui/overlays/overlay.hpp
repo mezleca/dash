@@ -2,13 +2,11 @@
 
 #include <imgui-ui/layout/layer-container.hpp>
 
-class MenuOptionOverlay : public ui::LayerContainer {
+class Overlay : public ui::LayerContainer {
 public:
-    explicit MenuOptionOverlay(
-        std::string id, ui::TransitionSpec transition = {0.2F, ui::easing::out_cubic}, bool animate_scale = true
-    );
+    explicit Overlay(std::string id, ui::TransitionSpec transition = {0.2F, ui::easing::out_cubic}, bool animate_scale = true);
 
-    void show();
+    virtual void show();
     void hide(bool scale = true);
     void on_key_press(ui::InputCallback callback);
 

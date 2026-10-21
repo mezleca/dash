@@ -8,6 +8,7 @@ public:
     RigidBody(
         GameObject& object, World& world, b2BodyType body_type = b2_staticBody, bool sensor = false, bool collidable = true
     );
+
     ~RigidBody() override;
 
     bool collision_enabled() const;
@@ -29,6 +30,9 @@ public:
     Rectangle get_bounding_box() const;
     Rectangle get_world_bounding_box() const;
     Vector2 get_dimensions() const;
+
+    // resize around the local bounds center, circles and capsules preserve their aspect ratio
+    void set_dimensions(Vector2 dimensions);
 
     b2ShapeId get_shape() const {
         return m_shape;
@@ -56,6 +60,8 @@ public:
 
 private:
     b2ShapeDef shape_definition(bool sensor);
+    PhysicsShape rotated_shape() const;
+    b2ShapeId create_shape(const b2ShapeDef& definition) const;
     void update_shape();
 
     friend class World;

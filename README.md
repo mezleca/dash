@@ -42,10 +42,15 @@ Platformer Game inspired by Geometry Dash.
 - [x] serialization
 
 ### EDITOR
-- [ ] panel: objects (select and place on world)
-- [x] panel: properties (will automatically change after placing a new object or clicking on one)
-- [x] panel: metadata (update level metadata)
-- [x] move and selector mode 
-- [x] move camera on drag
-- [x] zoom camera on scrollwheel
-- [ ] move selected gameobject
+- [x] viewport: select one or more objects at once
+- [x] viewport: render rect with resize joints
+- [x] viewport: move and zoom camera using mouse and scrollwheel
+- [x] panel: object properties
+- [x] panel: level metadata
+- [x] mode
+    - [x] Move
+    - [x] Select
+- [ ] library
+    - [ ] GameObject's list
+    - [ ] select GameObject from list
+    - [ ] add selected GameObject into world

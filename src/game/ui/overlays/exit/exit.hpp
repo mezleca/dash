@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../option-overlay.hpp"
+#include "../overlay.hpp"
 
 #include <functional>
 
-class ExitOverlay : public MenuOptionOverlay {
+class ExitOverlay : public Overlay {
 public:
-    ExitOverlay(std::string id, std::function<void()> on_cancel);
+    ExitOverlay(std::string id, std::string message, std::function<void()> on_confirm, std::function<void()> on_cancel);
 };

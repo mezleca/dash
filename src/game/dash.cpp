@@ -1,17 +1,7 @@
 #include "dash.hpp"
-#include "ui/game-ui.hpp"
-#include "ui/theme.hpp"
-
-#include <imgui-ui/runtime.hpp>
-#include <imgui-ui/backends/opengl/texture-loader.hpp>
-#include <imgui-ui/backends/raylib/backend.hpp>
-#include <imgui-ui/diagnostics/debugger.hpp>
-#include <imgui-ui/input/router.hpp>
-#include <imgui-ui/layout/container.hpp>
+#include "ui/ui.hpp"
 #include <iostream>
 #include <raylib.h>
-
-using namespace ui;
 
 Dash::Dash() : Game({"dash", 1280, 720}) {
     // create the default viewport
@@ -24,16 +14,6 @@ Dash::Dash() : Game({"dash", 1280, 720}) {
 Dash::~Dash() = default;
 
 void Dash::on_initialize() {
-    // the raylib backend needs the window and graphics context created by Game::run.
-    ui::RuntimeConfig runtime_config;
-    runtime_config.texture_loader = std::make_unique<ui::OpenGLTextureLoader>();
-    m_runtime = std::make_unique<ui::Runtime>(std::move(runtime_config));
-
-    ui::SurfaceConfig config;
-    config.backend = std::make_unique<ui::RaylibBackend>();
-    config.enable_debugger = true;
-    m_ui = std::make_unique<ui::Surface>(*m_runtime, std::move(config));
-
     if (!m_settings->load()) {
         std::cerr << "[game] warning: settings could not be loaded\n";
     }
@@ -71,7 +51,7 @@ void Dash::on_initialize() {
     }
 
     m_settings->update_levels_progress();
-    build_ui();
+    m_ui = std::make_unique<GameUI>(*this);
 }
 
 CameraView& Dash::level_camera() const {
@@ -85,8 +65,7 @@ CameraView& Dash::level_camera() const {
 }
 
 void Dash::on_update(float frametime) {
-    m_ui->process_events();
-    if (m_ui->is_done()) {
+    if (!m_ui->process_events()) {
         exit();
         return;
     }
@@ -105,11 +84,7 @@ void Dash::on_update(float frametime) {
         return;
     }
 
-    if (editing && m_editor != nullptr) {
-        const Vector2 pointer = GetMousePosition();
-        m_editor->update(m_game_ui->pointer_over_ui({pointer.x, pointer.y}), is_debugger_open());
-    }
-
+    m_ui->update_editor();
     m_current_level->update();
 
     // update level behaviours and remove completed ones before entity components run.
@@ -119,52 +94,14 @@ void Dash::on_update(float frametime) {
 }
 
 void Dash::on_render() {
-    m_ui->begin_frame();
-
-    for (std::size_t index = 0; index < viewport_count(); ++index) {
-        if (auto* viewport = get_viewport(index)) {
-            viewport->draw();
-        }
-    }
-
-    m_ui->update(GetFrameTime());
-    m_ui->draw();
-    m_ui->end_frame();
-}
-
-void Dash::build_ui() {
-    auto& runtime = surface().runtime();
-    auto* font = runtime.fonts().add("MainFont", "resources/fonts/Baloo-Regular.ttf");
-
-    surface().set_theme(make_dash_theme());
-    surface().set_primary_font(font);
-    surface().debugger()->set_font("MainFont", 24);
-
-    auto& root = surface().root();
-    static_cast<Container&>(root).configure_all_styles([](Style& style) { style.background_color(rgba(0, 0, 0, 0)); });
-
-    m_game_ui = &root.add<GameUI>(*this);
-    surface().input_router().on_event([this](UiEvent& event) {
-        if (event.type != EventType::PointerDown || event.button != PointerButton::Left || m_current_level == nullptr ||
-            m_current_level->state() != LevelState::EDITING || m_editor == nullptr || is_debugger_open() ||
-            m_game_ui->pointer_over_ui(event.position)) {
-            return;
-        }
-
-        auto* viewport = get_viewport(0);
-        if (viewport == nullptr || !viewport->contains_mouse()) {
-            return;
-        }
-
-        m_editor->pointer_down(viewport->mouse_position());
-    });
+    m_ui->draw(GetFrameTime());
 }
 
 bool Dash::simulation_active() const {
     return m_current_level != nullptr && m_current_level->state() == LevelState::PLAYING;
 }
 
-bool Dash::load_level(DashLevel& level, bool editor) {
+bool Dash::load_level(DashLevel& level, bool editor, bool force_free_mode) {
     if (m_current_level != nullptr) {
         std::cout << "[game] failed to load level while another level is active\n";
         return false;
@@ -190,7 +127,7 @@ bool Dash::load_level(DashLevel& level, bool editor) {
     if (editor) {
         camera.set_target(level.player_start());
     } else {
-        level.spawn_player(m_settings->godmode(), free_mode());
+        level.spawn_player(m_settings->godmode(), force_free_mode || free_mode());
         level.player()->update_camera(camera, true);
         level.set_music_volume(static_cast<float>(m_settings->volume()) / 100.0f);
 
@@ -202,6 +139,7 @@ bool Dash::load_level(DashLevel& level, bool editor) {
     }
 
     m_current_level = &level;
+    m_force_free_mode = force_free_mode && !editor;
     std::cout << "loaded " << level.file() << " successfully\n";
 
     return true;
@@ -234,7 +172,7 @@ bool Dash::start_level() {
     }
 
     // configure player and focus the camera.
-    m_current_level->spawn_player(m_settings->godmode(), free_mode());
+    m_current_level->spawn_player(m_settings->godmode(), m_force_free_mode || free_mode());
     player()->update_camera(camera, true);
 
     // sync level with saved data.
@@ -264,6 +202,7 @@ void Dash::unload_current_level() {
 
     reset_simulation_clock();
     m_current_level = nullptr;
+    m_force_free_mode = false;
 }
 
 bool Dash::restart_current_level() {
@@ -297,7 +236,7 @@ void Dash::return_to_menu() {
         unload_current_level();
     }
 
-    m_game_ui->show_screen(GameScreen::Menu);
+    m_ui->show_screen(GameScreen::Menu);
 }
 
 void Dash::finish_level() {
@@ -309,6 +248,7 @@ void Dash::finish_level() {
     m_settings->save();
     m_current_level->set_finished(true);
     m_current_level->set_state(LevelState::PAUSED);
+    m_ui->show_screen(GameScreen::Finished);
 }
 
 void Dash::kill_player() {
@@ -329,7 +269,7 @@ void Dash::kill_player() {
     camera.view().zoom = DEFAULT_CAMERA_ZOOM;
     camera.view().rotation = DEFAULT_CAMERA_ROTATION;
     m_current_level->begin_death();
-    m_game_ui->show_screen(GameScreen::Death);
+    m_ui->show_screen(GameScreen::Death);
 }
 
 void Dash::set_music_volume(int volume) {
@@ -349,7 +289,7 @@ void Dash::set_godmode(bool enabled) {
 void Dash::set_free_mode(bool enabled) {
     m_settings->set_free_mode(enabled);
     m_settings->save();
-    if (player() != nullptr) player()->set_free_mode(enabled);
+    if (player() != nullptr) player()->set_free_mode(m_force_free_mode || enabled);
 }
 
 void Dash::on_fixed_update(float timestep) {
@@ -385,7 +325,5 @@ void Dash::on_shutdown() {
     }
 
     m_levels.clear();
-    m_game_ui = nullptr;
     m_ui.reset();
-    m_runtime.reset();
 }

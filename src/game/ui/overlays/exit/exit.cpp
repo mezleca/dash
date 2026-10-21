@@ -1,28 +1,25 @@
 #include "exit.hpp"
+#include "game/ui/controls.hpp"
 
 #include <imgui-ui/layout/container.hpp>
-#include <imgui-ui/surface.hpp>
-#include <imgui-ui/widgets/box.hpp>
-#include <imgui-ui/widgets/button.hpp>
 #include <imgui-ui/widgets/text.hpp>
 #include <utility>
 
 using namespace ui;
 
-ExitOverlay::ExitOverlay(std::string id, std::function<void()> on_cancel) : MenuOptionOverlay("exit-" + id) {
-    set_content_alignment(Anchor::TopLeft);
+ExitOverlay::ExitOverlay(std::string id, std::string message, std::function<void()> on_confirm, std::function<void()> on_cancel)
+    : Overlay("exit-" + id) {
+    set_content_alignment(Anchor::Center);
     set_spacing(10.0F);
     configure_all_styles([](Style& style) { style.padding({32.0F, 24.0F}); });
 
-    add<TextWidget>("exit game?");
-
-    auto& separator = add<BoxWidget>("exit-separator", LayoutSize{grow(), px(1)});
-    separator.configure_all_styles([](Style& style) { style.background_color(rgb(72, 72, 72)); });
+    add<TextWidget>(std::move(message));
 
     auto& actions = add<Container>("exit-actions", StackDirection::Horizontal);
     actions.set_size({grow(), fit()});
+    actions.set_content_alignment(Anchor::Center);
     actions.set_spacing(8.0F);
 
-    actions.add<ButtonWidget>("confirm").on_click([this] { surface().exit(); });
-    actions.add<ButtonWidget>("cancel").on_click(std::move(on_cancel));
+    actions.add<DashButton>("confirm").on_click(std::move(on_confirm));
+    actions.add<DashButton>("cancel").on_click(std::move(on_cancel));
 }

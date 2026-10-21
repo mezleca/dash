@@ -8,7 +8,7 @@
 using namespace ui;
 
 LevelSelectorOverlay::LevelSelectorOverlay(Dash& game, std::string id, std::function<void(DashLevel&)> on_select)
-    : MenuOptionOverlay("level-selector-" + id) {
+    : Overlay("level-selector-" + id) {
     set_size({grow(), grow()});
 
     auto& levels = game.levels();
@@ -29,7 +29,7 @@ LevelSelectorOverlay::LevelSelectorOverlay(Dash& game, std::string id, std::func
 }
 
 void LevelSelectorOverlay::apply_theme_defaults(const Theme& theme) {
-    MenuOptionOverlay::apply_theme_defaults(theme);
+    Overlay::apply_theme_defaults(theme);
 
     configure_all_styles([&theme](Style& style) {
         style.border(BorderEdge{0.0F, BorderType::None});

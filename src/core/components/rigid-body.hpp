@@ -3,6 +3,8 @@
 #include "component.hpp"
 #include "core/physics/world.hpp"
 
+#include <string_view>
+
 class RigidBody : public Component {
 public:
     RigidBody(
@@ -10,6 +12,9 @@ public:
     );
 
     ~RigidBody() override;
+
+    static const char* type_to_str(b2BodyType type);
+    static b2BodyType type_from_str(std::string_view type);
 
     bool collision_enabled() const;
     void set_collision_enabled(bool enabled);
@@ -29,10 +34,9 @@ public:
 
     Rectangle get_bounding_box() const;
     Rectangle get_world_bounding_box() const;
-    Vector2 get_dimensions() const;
 
-    // resize around the local bounds center, circles and capsules preserve their aspect ratio
-    void set_dimensions(Vector2 dimensions);
+    Vector2 get_size() const;
+    void set_size(Vector2 size, Vector2 origin = {});
 
     b2ShapeId get_shape() const {
         return m_shape;

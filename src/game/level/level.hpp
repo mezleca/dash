@@ -82,6 +82,12 @@ public:
         return m_metadata.player_start;
     }
 
+    Vector2 end_position() const {
+        return m_level_end;
+    }
+
+    void update_end_position();
+
     Player* player() const {
         return m_player;
     }
@@ -95,12 +101,16 @@ public:
     }
 
     bool save();
+    bool create(const LevelMetadata& metadata);
+    bool remove();
     bool load(const fs::path& location);
 
     void serialize(Serializer& serializer) const override;
     void deserialize(Deserializer& deserializer, const fs::path& directory) override;
 
     bool load_objects();
+    Entity& create_object(EntityType type);
+    void remove_object(Entity* object);
     void unload();
     void reset();
     void begin_death();

@@ -27,6 +27,11 @@ void EditorIconButton::apply_theme_defaults(const Theme& theme) {
 }
 
 void EditorIconButton::event(UiEvent& event) {
+    if (event.type == EventType::PointerDown && event.button == PointerButton::Left) {
+        event.stop_propagation();
+        return;
+    }
+
     if (event.type != EventType::Click || event.button != PointerButton::Left) {
         return;
     }

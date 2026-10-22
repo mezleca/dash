@@ -49,6 +49,23 @@ RigidBody::RigidBody(GameObject& object, World& world, b2BodyType physics_type, 
     m_world.add(*this);
 }
 
+const char* RigidBody::type_to_str(b2BodyType type) {
+    switch (type) {
+        case b2_dynamicBody:
+            return "dynamic";
+        case b2_kinematicBody:
+            return "kinematic";
+        default:
+            return "static";
+    }
+}
+
+b2BodyType RigidBody::type_from_str(std::string_view type) {
+    if (type == "dynamic") return b2_dynamicBody;
+    if (type == "kinematic") return b2_kinematicBody;
+    return b2_staticBody;
+}
+
 RigidBody::~RigidBody() {
     m_world.remove(*this);
 
@@ -68,32 +85,47 @@ Vector2 RigidBody::get_velocity() const {
     return {velocity.x * PHYSICS_PIXELS_PER_METER, velocity.y * PHYSICS_PIXELS_PER_METER};
 }
 
-Vector2 RigidBody::get_dimensions() const {
+Vector2 RigidBody::get_size() const {
     const Rectangle bounds = get_bounding_box();
     return {bounds.width, bounds.height};
 }
 
-void RigidBody::set_dimensions(Vector2 dimensions) {
+void RigidBody::set_size(Vector2 size, Vector2 origin) {
     const Rectangle bounds = get_bounding_box();
-    if (!std::isfinite(dimensions.x) || !std::isfinite(dimensions.y) || dimensions.x <= 0.0F || dimensions.y <= 0.0F ||
-        bounds.width <= 0.0F || bounds.height <= 0.0F) {
+    if (!std::isfinite(size.x) || !std::isfinite(size.y) || size.x <= 0.0F || size.y <= 0.0F || bounds.width <= 0.0F ||
+        bounds.height <= 0.0F) {
         return;
     }
 
-    const Vector2 scale = {dimensions.x / bounds.width, dimensions.y / bounds.height};
+    const Vector2 scale = {size.x / bounds.width, size.y / bounds.height};
+    const float factor = std::abs(scale.x - 1.0F) >= std::abs(scale.y - 1.0F) ? scale.x : scale.y;
+
+    // box2d shapes are "attached relative to the body's origin", not its center of mass
+    // https://box2d.org/documentation/md_simulation.html
+    // bounds use world pixels, subtract the body position and convert to local meters
     const Vector2 position = get_position();
     const b2Vec2 center = {
         (bounds.x + bounds.width * 0.5F - position.x) / PHYSICS_PIXELS_PER_METER,
         (bounds.y + bounds.height * 0.5F - position.y) / PHYSICS_PIXELS_PER_METER
     };
 
-    const auto scale_point = [&center](b2Vec2 point, float factor) {
-        return b2Vec2{center.x + (point.x - center.x) * factor, center.y + (point.y - center.y) * factor};
-    };
-
     std::visit(
         [&](auto& shape) {
             using T = std::decay_t<decltype(shape)>;
+            const Vector2 resized_size =
+                std::is_same_v<T, b2Polygon> ? size : Vector2{bounds.width * factor, bounds.height * factor};
+
+            // our shape rotation uses the bounds center, keep the requested anchor fixed in world space
+            // origin {0, 0} fixes the top-left corner, {0.5, 0.5} keeps the center fixed for handle dragging
+            const b2Vec2 offset = b2RotateVector(
+                b2MakeRot(m_rotation * DEG2RAD), {(resized_size.x - bounds.width) * (0.5F - origin.x) / PHYSICS_PIXELS_PER_METER,
+                                                  (resized_size.y - bounds.height) * (0.5F - origin.y) / PHYSICS_PIXELS_PER_METER}
+            );
+            const b2Vec2 target_center = b2Add(center, offset);
+            const auto scale_point = [&](b2Vec2 point, float scale_x, float scale_y) {
+                return b2Vec2{target_center.x + (point.x - center.x) * scale_x, target_center.y + (point.y - center.y) * scale_y};
+            };
+
             if constexpr (std::is_same_v<T, b2Polygon>) {
                 const float radius = shape.radius * std::min(scale.x, scale.y);
                 b2Vec2 vertices[B2_MAX_POLYGON_VERTICES];
@@ -105,8 +137,8 @@ void RigidBody::set_dimensions(Vector2 dimensions) {
                     return;
                 }
 
-                const float scale_x = (dimensions.x / PHYSICS_PIXELS_PER_METER - 2.0F * radius) / inner_width;
-                const float scale_y = (dimensions.y / PHYSICS_PIXELS_PER_METER - 2.0F * radius) / inner_height;
+                const float scale_x = (size.x / PHYSICS_PIXELS_PER_METER - 2.0F * radius) / inner_width;
+                const float scale_y = (size.y / PHYSICS_PIXELS_PER_METER - 2.0F * radius) / inner_height;
 
                 // a non-positive scale would mirror the hull and still pass validation
                 if (scale_x <= 0.0F || scale_y <= 0.0F) {
@@ -114,10 +146,7 @@ void RigidBody::set_dimensions(Vector2 dimensions) {
                 }
 
                 for (int index = 0; index < shape.count; ++index) {
-                    vertices[index] = {
-                        center.x + (shape.vertices[index].x - center.x) * scale_x,
-                        center.y + (shape.vertices[index].y - center.y) * scale_y
-                    };
+                    vertices[index] = scale_point(shape.vertices[index], scale_x, scale_y);
                 }
 
                 const b2Hull hull = b2ComputeHull(vertices, shape.count);
@@ -125,14 +154,17 @@ void RigidBody::set_dimensions(Vector2 dimensions) {
                     return;
                 }
 
+                // box2d: "instead use a helper function like b2MakePolygon or b2MakeBox"
+                // https://box2d.org/documentation/group__geometry.html
+                // rebuild normals and centroid along with the scaled vertices
                 shape = b2MakePolygon(&hull, radius);
             } else {
-                const float factor = std::abs(scale.x - 1.0F) >= std::abs(scale.y - 1.0F) ? scale.x : scale.y;
+                // circles and capsule ends have one radius, uniform scaling preserves their supported geometry
                 if constexpr (std::is_same_v<T, b2Circle>) {
-                    shape.center = scale_point(shape.center, factor);
+                    shape.center = scale_point(shape.center, factor, factor);
                 } else {
-                    shape.center1 = scale_point(shape.center1, factor);
-                    shape.center2 = scale_point(shape.center2, factor);
+                    shape.center1 = scale_point(shape.center1, factor, factor);
+                    shape.center2 = scale_point(shape.center2, factor, factor);
                 }
                 shape.radius *= factor;
             }
@@ -233,6 +265,7 @@ PhysicsShape RigidBody::rotated_shape() const {
     const float radians = m_rotation * (B2_PI / 180.0f);
     const b2Rot rotation = {std::cos(radians), std::sin(radians)};
 
+    // rotation around the visual bounds center is an editor convention, not a box2d requirement
     const b2AABB bounds = compute_aabb(m_base_shape, b2Transform_identity);
     const b2Vec2 pivot = {
         (bounds.lowerBound.x + bounds.upperBound.x) * 0.5f,
@@ -294,7 +327,9 @@ void RigidBody::update_shape() {
         rotated_shape()
     );
 
-    // geometry setters do not recalculate body mass.
+    // box2d on geometry setters: "does not modify the mass properties"
+    // https://box2d.org/documentation/group__shape.html
+    // update the existing body after replacing its geometry, without recreating the shape
     b2Body_UpdateMassFromShapes(m_body);
     m_grounded = false;
 }

@@ -6,10 +6,11 @@
 #include <raylib.h>
 
 #include <string>
+#include <vector>
+#include <functional>
 
 namespace ui {
     class Container;
-    class TextWidget;
 } // namespace ui
 
 class Dash;
@@ -31,6 +32,7 @@ public:
     bool has_draft_changes() const;
     bool save();
     void reset();
+    void refresh();
 
 protected:
     void on_update(float frametime) override;
@@ -45,11 +47,12 @@ private:
     void build_rigid_body(ui::Container& body, RigidBody& rigid_body);
     void build_sprite(ui::Container& body, Sprite& sprite);
     void mark_changed();
+    void edit_objects(const std::function<void(Entity&)>& edit);
 
     Dash& m_game;
     Entity* m_selected = nullptr;
+    std::vector<Entity*> m_selection;
     ui::Container* m_body = nullptr;
-    ui::TextWidget* m_size_label = nullptr;
     DashDialog* m_music_field = nullptr;
     EditorTabButton* m_properties_tab = nullptr;
     EditorTabButton* m_metadata_tab = nullptr;

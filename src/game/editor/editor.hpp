@@ -10,6 +10,8 @@ class DashLevel;
 class Entity;
 class Viewport;
 
+static constexpr int OBJECTS_BUFFER_LIMIT = 32;
+
 enum class EditorMode {
     Move,
     Select,
@@ -40,6 +42,12 @@ struct EditorInteraction {
     std::vector<EditorObjectState> m_objects;
 };
 
+struct EditorSnapshot {
+    std::vector<Entity*> m_objects;
+    std::vector<std::string> m_states;
+    bool operator==(const EditorSnapshot&) const = default;
+};
+
 class LevelEditor {
 public:
     LevelEditor(Viewport& viewport, DashLevel& level);
@@ -52,6 +60,9 @@ public:
     bool clear_selection();
 
     void mark_changed();
+    void undo();
+    void copy_selection();
+    void paste();
     void mark_saved();
     bool has_unsaved_changes() const;
 
@@ -79,13 +90,23 @@ private:
     void begin_interaction(InteractionMode mode, Vector2 screen_position);
     void resize_selected(Vector2 delta);
     Vector2 snap_delta(Vector2 delta) const;
+    EditorSnapshot snapshot() const;
 
+    // game owned references
     Viewport& m_viewport;
     DashLevel& m_level;
-    // the game owns these objects, the editor is reset before the level unloads
+
+    // entity buffers (ref only)
     std::vector<Entity*> m_selection;
+    std::vector<Entity*> m_copied_objects;
+
+    // entity buffer (copies for undo, etc...)
+    std::vector<EditorSnapshot> m_history;
+
+    EditorSnapshot m_current_state;
     EditorInteraction m_interaction;
-    EditorMode m_mode = EditorMode::Select;
+    EditorMode m_mode = EditorMode::Move;
+
     std::string m_saved_state;
     mutable bool m_changes_pending = false;
     mutable bool m_unsaved_changes = false;

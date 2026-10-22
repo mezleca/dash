@@ -1,12 +1,15 @@
 #include "level-card.hpp"
 #include "game/level/level.hpp"
+#include "game/ui/overlays/editor/controls.hpp"
 
 #include <imgui-ui/surface.hpp>
+#include <imgui-ui/runtime.hpp>
 #include <imgui-ui/imgui/painter.hpp>
 #include <imgui-ui/layout/container.hpp>
 #include <imgui-ui/widgets/text.hpp>
 
 #include <string>
+#include <utility>
 
 using namespace ui;
 
@@ -73,6 +76,18 @@ LevelCard::LevelCard(const DashLevel& level) : DashButton("", {percent(50), perc
     m_description->set_size({{fit(), px(0), percent(100)}, fit()});
 
     m_content->add<LevelProgressBar>(level);
+
+    m_remove_button = &add<EditorIconButton>(nullptr);
+    m_remove_button->set_anchor(Anchor::TopRight);
+    m_remove_button->set_visible(false);
+}
+
+void LevelCard::on_remove(std::function<void()> callback) {
+    m_remove_button->on_click(std::move(callback));
+}
+
+void LevelCard::set_removable(bool removable) {
+    m_remove_button->set_visible(removable);
 }
 
 void LevelCard::on_update(float) {
@@ -89,6 +104,13 @@ void LevelCard::draw_children() {
     ImGui::SetCursorScreenPos(content.min);
     m_content->draw_at_cursor();
 
+    if (m_remove_button->visible()) {
+        const ImVec2 size = m_remove_button->layout().resolve_size(content.size());
+        arrange_child(*m_remove_button, size);
+        ImGui::SetCursorScreenPos({content.max.x - size.x, content.min.y});
+        m_remove_button->draw_at_cursor();
+    }
+
     ImGui::SetCursorScreenPos(cursor);
 }
 
@@ -96,6 +118,7 @@ void LevelCard::apply_theme_defaults(const Theme& theme) {
     DashButton::apply_theme_defaults(theme);
     set_font(surface().get_primary_font(), 48);
     m_description->set_font(surface().get_primary_font(), 24);
+    m_remove_button->set_texture(surface().runtime().textures().add("editor-close", RESOURCES_LOCATION / "ui/close.svg"));
 
     configure_all_styles([](Style& style) {
         style.background_color(rgb(36, 36, 36));

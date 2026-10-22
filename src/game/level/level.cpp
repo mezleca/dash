@@ -4,9 +4,11 @@
 #include "game/entity/world/platform.hpp"
 #include "game/entity/world/spike.hpp"
 #include "game/entity/world/static.hpp"
-#include "game/entity/world/finish.hpp"
+#include "finish-pulse.hpp"
+#include "core/components/background-sprite.hpp"
 #include "game/entity/world/trigger.hpp"
 #include "core/math.hpp"
+#include "core/physics/shape.hpp"
 
 #include <algorithm>
 #include <iostream>
@@ -17,8 +19,12 @@
 constexpr float DEATH_ANIMATION_DURATION = 1.0f; // in seconds
 constexpr float DEATH_ZOOM_MULTIPLIER = 1.12f;
 constexpr float DEATH_ROTATION_OFFSET = 5.0f;
+constexpr float FINISH_DISTANCE = 2.0F * PHYSICS_PIXELS_PER_METER;
+constexpr float PLATFORM_FINISH_DISTANCE = 8.0F * PHYSICS_PIXELS_PER_METER;
 
-DashLevel::DashLevel(Dash& game) : Entity(EntityType::LEVEL), m_game(game) {}
+DashLevel::DashLevel(Dash& game) : Entity(EntityType::LEVEL), m_game(game) {
+    add_component<FinishPulse>(*this);
+}
 
 DashLevel::~DashLevel() {
     unload();
@@ -64,7 +70,7 @@ void DashLevel::update() {
         return;
     }
 
-    if (m_state != LevelState::PLAYING || m_level_end.x <= 0.0f) {
+    if (m_state != LevelState::PLAYING) {
         return;
     }
 
@@ -72,10 +78,38 @@ void DashLevel::update() {
         UpdateMusicStream(m_music);
     }
 
-    // update level progress based on player position and level end (furthest object or a trigger)
-    m_current_progress = std::min(m_player->body().get_position().x / m_level_end.x * 100.0f, 100.0f);
+    const float distance = m_level_end.x - m_metadata.player_start.x;
+    m_current_progress =
+        std::clamp((m_player->body().get_position().x - m_metadata.player_start.x) / distance * 100.0F, 0.0F, 100.0F);
     if (m_current_progress >= 100.0f) {
         m_game.finish_level();
+    }
+}
+
+void DashLevel::update_end_position() {
+    m_level_end = m_metadata.player_start;
+    const Entity* last = nullptr;
+    float previous_end = m_level_end.x;
+    for (const auto* object : m_objects) {
+        const auto* background = object->get_component<BackgroundSprite>();
+        if (background != nullptr && background->fill_viewport()) continue;
+
+        const auto* body = object->get_component<RigidBody>();
+        if (body == nullptr) continue;
+
+        const Rectangle bounds = body->get_world_bounding_box();
+        if (bounds.x + bounds.width >= m_level_end.x) {
+            previous_end = m_level_end.x;
+            m_level_end = {bounds.x + bounds.width, bounds.y + bounds.height * 0.5F};
+            last = object;
+        } else {
+            previous_end = std::max(previous_end, bounds.x + bounds.width);
+        }
+    }
+    if (last != nullptr && last->type() == EntityType::PLATFORM) {
+        m_level_end.x = std::min(m_level_end.x, previous_end + PLATFORM_FINISH_DISTANCE);
+    } else {
+        m_level_end.x += FINISH_DISTANCE;
     }
 }
 
@@ -130,6 +164,59 @@ void DashLevel::reset() {
     m_finished_death_animation = false;
     m_death_elapsed = 0.0f;
     set_music_pitch(1.0f);
+}
+
+bool DashLevel::create(const LevelMetadata& metadata) {
+    if (!m_file.empty() || metadata.name.find_first_not_of(" \t\r\n") == std::string::npos) return false;
+
+    // {name}_{creator}
+    const std::string id = metadata.name + "_" + metadata.creator;
+    if (!fs::is_regular_file(metadata.music.path())) {
+        return false;
+    }
+
+    fs::create_directories(LEVELS_LOCATION);
+
+    const fs::path directory = LEVELS_LOCATION / id;
+    if (!fs::create_directory(directory)) {
+        std::cout << "[level] cannot create level\nreason: unknown\n";
+        return false;
+    }
+
+    m_file = directory / "level.json";
+    m_metadata = metadata;
+    m_metadata.music = DashFile(directory / ("audio" + metadata.music.path().extension().string()));
+    m_metadata.player_start = {32.0F, 0.0F};
+
+    auto& platform = create_object(EntityType::PLATFORM);
+    auto* body = platform.get_component<RigidBody>();
+    body->set_shape(make_box_shape(1024.0F, 64.0F));
+    body->set_position(0.0F, 100.0F);
+
+    const bool created = m_metadata.music.update(metadata.music.path()) && save();
+    unload();
+
+    if (!created) {
+        fs::remove_all(directory);
+        m_file.clear();
+    }
+
+    return created;
+}
+
+bool DashLevel::remove() {
+    if (m_file.empty()) return false;
+
+    std::error_code error;
+    fs::remove_all(m_file.parent_path(), error);
+    if (error) {
+        std::cout << "[level] failed to remove " << m_file << ": " << error.message() << '\n';
+        return false;
+    }
+
+    unload();
+    m_file.clear();
+    return true;
 }
 
 bool DashLevel::load(const fs::path& location) {
@@ -199,11 +286,13 @@ void DashLevel::deserialize(Deserializer& deserializer, const fs::path& director
     m_metadata.description.clear();
     deserializer.field("description", m_metadata.description);
 
-    if (!m_loading_objects) return;
+    if (!m_loading_objects) {
+        return;
+    }
 
-    bool has_finish = false;
     const std::size_t count = deserializer.array_size("objects");
-    m_objects.reserve(count + 1);
+
+    m_objects.reserve(count);
     for (std::size_t index = 0; index < count; ++index) {
         deserializer.begin_element("objects", index);
 
@@ -213,53 +302,53 @@ void DashLevel::deserialize(Deserializer& deserializer, const fs::path& director
         }
 
         const auto type = static_cast<EntityType>(raw_type);
-        Entity* object = nullptr;
-        switch (type) {
-            case EntityType::PLATFORM:
-                object = &m_game.add_object<Platform>(m_game.world());
-                break;
-            case EntityType::SPIKE:
-                object = &m_game.add_object<Spike>(m_game.world());
-                break;
-            case EntityType::STATIC_TEXTURE:
-                object = &m_game.add_object<StaticTexture>(m_game.world());
-                break;
-            case EntityType::END:
-                object = &m_game.add_object<Finish>(m_game.world());
-                has_finish = true;
-                break;
-            case EntityType::TRIGGER:
-                object = &m_game.add_object<Trigger>(m_game.world(), *this);
-                break;
-            default:
-                std::cout << "[level] unsupported object type: " << raw_type << "\n";
-                deserializer.end_element();
-                continue;
+        if (type == EntityType::END) {
+            deserializer.end_element();
+            continue;
+        }
+        if (type != EntityType::PLATFORM && type != EntityType::SPIKE && type != EntityType::STATIC_TEXTURE &&
+            type != EntityType::TRIGGER) {
+            std::cout << "[level] unsupported object type: " << raw_type << "\n";
+            deserializer.end_element();
+            continue;
         }
 
-        // track the object before reading components so a failed load removes it from the game.
-        m_objects.push_back(object);
+        Entity* object = &create_object(type);
         object->deserialize(deserializer, directory);
-        auto* body = object->get_component<RigidBody>();
-
-        const Rectangle bounds = body->get_bounding_box();
-        if (type == EntityType::PLATFORM && bounds.x + bounds.width > m_level_end.x) {
-            m_level_end = {bounds.x + bounds.width, bounds.y};
-        }
 
         deserializer.end_element();
     }
 
-    if (m_level_end.x == 0.0f) {
-        throw std::invalid_argument("unable to determine level end position");
+    update_end_position();
+}
+
+Entity& DashLevel::create_object(EntityType type) {
+    Entity* object = nullptr;
+    switch (type) {
+        case EntityType::PLATFORM:
+            object = &m_game.add_object<Platform>(m_game.world());
+            break;
+        case EntityType::SPIKE:
+            object = &m_game.add_object<Spike>(m_game.world());
+            break;
+        case EntityType::STATIC_TEXTURE:
+            object = &m_game.add_object<StaticTexture>(m_game.world());
+            break;
+        case EntityType::TRIGGER:
+            object = &m_game.add_object<Trigger>(m_game.world(), *this);
+            break;
+        default:
+            throw std::invalid_argument("unsupported level object type");
     }
 
-    if (!has_finish) {
-        auto& end = m_game.add_object<Finish>(m_game.world());
-        auto* body = end.get_component<RigidBody>();
-        body->set_position(m_level_end.x - body->get_dimensions().x / 2.0f, m_level_end.y - body->get_dimensions().x / 2.0f);
-        m_objects.push_back(&end);
-    }
+    m_objects.push_back(object);
+    return *object;
+}
+
+void DashLevel::remove_object(Entity* object) {
+    std::erase(m_objects, object);
+    m_game.remove_object(object);
+    update_end_position();
 }
 
 bool DashLevel::save() {

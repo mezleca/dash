@@ -12,6 +12,23 @@ Sprite::Sprite(GameObject& object, SpriteType sprite_type, Color color)
 Sprite::Sprite(GameObject& object, ComponentId id, SpriteType sprite_type, Color color)
     : Component(object, id), tint(color), type(sprite_type) {}
 
+const char* Sprite::type_to_str(SpriteType type) {
+    switch (type) {
+        case SpriteType::TRIANGLE:
+            return "triangle";
+        case SpriteType::CIRCLE:
+            return "circle";
+        default:
+            return "square";
+    }
+}
+
+SpriteType Sprite::type_from_str(std::string_view type) {
+    if (type == "triangle") return SpriteType::TRIANGLE;
+    if (type == "circle") return SpriteType::CIRCLE;
+    return SpriteType::SQUARE;
+}
+
 Sprite::~Sprite() {
     if (m_texture.id) {
         UnloadTexture(m_texture);

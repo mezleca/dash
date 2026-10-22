@@ -65,12 +65,13 @@ void Player::update_camera_focus(const RigidBody& body) {
     m_camera_focus_y = bounds.y + bounds.height / 2.0f;
 }
 
-void Player::update_camera(CameraView& camera, bool snap) {
+void Player::update_camera(CameraView& camera, const DashLevel& level, bool snap) {
     if (snap || !m_game.has_finished_level()) {
         const Rectangle bounds = m_body.get_bounding_box();
+        const RigidBody* closest_platform = nullptr;
+
         const float center_x = bounds.x + bounds.width / 2.0f;
         const float bottom_y = bounds.y + bounds.height;
-        const RigidBody* closest_platform = nullptr;
         float closest_distance = CAMERA_PLATFORM_Y_THRESHOLD;
 
         for (const RigidBody* body : m_game.world().bodies()) {
@@ -92,9 +93,21 @@ void Player::update_camera(CameraView& camera, bool snap) {
     }
 
     const Vector2 position = m_body.get_position();
-    camera.set_target(
-        {position.x + CAMERA_LOOK_AHEAD.x, m_camera_focus_y + CAMERA_LOOK_AHEAD.y}, {1.0f, snap ? 1.0f : CAMERA_Y_SMOOTHING}
-    );
+    const Viewport* viewport = m_game.get_viewport(0);
+
+    Vector2 target = {position.x + CAMERA_LOOK_AHEAD.x, m_camera_focus_y + CAMERA_LOOK_AHEAD.y};
+    if (viewport != nullptr && viewport->size().x > 0.0F) {
+        const float half_width = viewport->size().x / (2.0F * camera.view().zoom);
+        const float minimum = level.player_start().x + half_width - CAMERA_LOOK_AHEAD.x;
+        const float maximum = level.end_position().x - half_width + CAMERA_LOOK_AHEAD.x;
+
+        target.x = minimum <= maximum ? std::clamp(target.x, minimum, maximum) : (minimum + maximum) * 0.5F;
+        if (!snap && (target.x <= minimum || target.x >= maximum)) {
+            target.y = camera.view().target.y;
+        }
+    }
+
+    camera.set_target(target, {1.0F, snap ? 1.0F : CAMERA_Y_SMOOTHING});
 }
 
 void Player::kill() {

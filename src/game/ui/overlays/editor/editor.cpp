@@ -10,6 +10,7 @@
 #include <raymath.h>
 #include <imgui-ui/surface.hpp>
 #include <imgui-ui/runtime.hpp>
+#include <imgui-ui/diagnostics/debugger.hpp>
 #include <imgui-ui/widgets/text.hpp>
 #include <imgui-ui/layout/container.hpp>
 
@@ -163,6 +164,20 @@ void EditorPanel::on_update(float) {
     }
 
     LevelEditor* editor = m_game.editor();
+
+    if (editor != nullptr && !surface().debugger()->is_open() && !ImGui::GetIO().WantTextInput &&
+        (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL))) {
+        if (IsKeyPressed(KEY_Z)) {
+            editor->undo();
+            m_properties->refresh();
+        } else if (IsKeyPressed(KEY_C)) {
+            editor->copy_selection();
+        } else if (IsKeyPressed(KEY_V)) {
+            editor->paste();
+            set_mode(editor->mode());
+        }
+    }
+
     m_update_button->set_visible(editor != nullptr && has_unsaved_changes());
     if (editor != m_editor) {
         m_editor = editor;

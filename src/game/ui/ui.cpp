@@ -305,6 +305,7 @@ void GameScreens::show_screen(GameScreen screen) {
 
 void GameScreens::show_levels(bool editor) {
     m_edit_selected_level = editor;
+    static_cast<LevelSelectorOverlay*>(m_screens.at(GameScreen::Levels))->set_editor_mode(editor);
     show_screen(GameScreen::Levels);
 }
 
@@ -386,6 +387,13 @@ void GameScreens::event(UiEvent& event) {
     }
 
     if (screen == GameScreen::Gameplay) {
+        return;
+    }
+
+    if (screen == GameScreen::Levels && escape &&
+        static_cast<LevelSelectorOverlay*>(m_screens.at(GameScreen::Levels))->cancel_creation()) {
+        event.stop_propagation();
+        event.block_native_input();
         return;
     }
 

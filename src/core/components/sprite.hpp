@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <string>
+#include <string_view>
 
 enum class SpriteType : uint8_t {
     SQUARE,
@@ -16,6 +17,9 @@ class Sprite : public Component {
 public:
     explicit Sprite(GameObject& object, SpriteType type = SpriteType::SQUARE, Color tint = WHITE);
     ~Sprite() override;
+
+    static const char* type_to_str(SpriteType type);
+    static SpriteType type_from_str(std::string_view type);
 
     void load_texture(const char* location);
     void render(Rectangle bounds, const Camera2D& camera, Vector2 viewport_size) const override;

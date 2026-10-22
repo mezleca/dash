@@ -13,6 +13,29 @@ Dash::Dash() : Game({"dash", 1280, 720}) {
 
 Dash::~Dash() = default;
 
+DashLevel* Dash::create_level(const LevelMetadata& metadata) {
+    auto& level = add_object<DashLevel>(*this);
+    if (!level.create(metadata)) {
+        remove_object(&level);
+        return nullptr;
+    }
+
+    m_levels.emplace(level.file().parent_path().filename().string(), &level);
+    return &level;
+}
+
+bool Dash::remove_level(DashLevel& level) {
+    const std::string id = level.file().parent_path().filename().string();
+    if (!level.remove()) return false;
+
+    if (m_current_level == &level) {
+        unload_current_level();
+    }
+    m_levels.erase(id);
+    remove_object(&level);
+    return true;
+}
+
 void Dash::on_initialize() {
     if (!m_settings->load()) {
         std::cerr << "[game] warning: settings could not be loaded\n";
@@ -128,7 +151,7 @@ bool Dash::load_level(DashLevel& level, bool editor, bool force_free_mode) {
         camera.set_target(level.player_start());
     } else {
         level.spawn_player(m_settings->godmode(), force_free_mode || free_mode());
-        level.player()->update_camera(camera, true);
+        level.player()->update_camera(camera, level, true);
         level.set_music_volume(static_cast<float>(m_settings->volume()) / 100.0f);
 
         if (!level.load_music()) {
@@ -173,7 +196,7 @@ bool Dash::start_level() {
 
     // configure player and focus the camera.
     m_current_level->spawn_player(m_settings->godmode(), m_force_free_mode || free_mode());
-    player()->update_camera(camera, true);
+    player()->update_camera(camera, *m_current_level, true);
 
     // sync level with saved data.
     m_current_level->set_music_volume(static_cast<float>(m_settings->volume()) / 100.0f);
@@ -310,7 +333,7 @@ void Dash::on_fixed_update(float timestep) {
     // focus camera on player.
     if (m_current_level->state() == LevelState::PLAYING) {
         if (auto* camera = camera_for(*current_player)) {
-            current_player->update_camera(*camera);
+            current_player->update_camera(*camera, *m_current_level);
         }
     }
 }

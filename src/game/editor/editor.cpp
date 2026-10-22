@@ -4,6 +4,7 @@
 #include "core/viewport/viewport.hpp"
 #include "game/level/level.hpp"
 
+#include <iostream>
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -36,10 +37,81 @@ static Vector2 local_pointer(const RigidBody& body, Vector2 world) {
 
 LevelEditor::LevelEditor(Viewport& viewport, DashLevel& level) : m_viewport(viewport), m_level(level) {
     mark_saved();
+    m_current_state = snapshot();
 }
 
 void LevelEditor::mark_changed() {
+    m_level.update_end_position();
+    auto state = snapshot();
+
+    if (state != m_current_state) {
+        if (m_history.size() == OBJECTS_BUFFER_LIMIT) m_history.erase(m_history.begin());
+        m_history.push_back(std::move(m_current_state));
+        m_current_state = std::move(state);
+    }
+
     m_changes_pending = true;
+}
+
+EditorSnapshot LevelEditor::snapshot() const {
+    EditorSnapshot state;
+    state.m_objects = m_level.objects();
+    state.m_states.reserve(state.m_objects.size());
+
+    for (const auto* object : state.m_objects) {
+        state.m_states.push_back(object->serialize_to_buffer());
+    }
+
+    return state;
+}
+
+void LevelEditor::undo() {
+    pointer_up();
+    if (m_history.empty()) {
+        return;
+    }
+
+    auto state = std::move(m_history.back());
+    m_history.pop_back();
+    const auto objects = m_level.objects();
+
+    for (auto* object : objects) {
+        if (std::find(state.m_objects.begin(), state.m_objects.end(), object) == state.m_objects.end()) {
+            std::erase(m_selection, object);
+            std::erase(m_copied_objects, object);
+            m_level.remove_object(object);
+        }
+    }
+
+    for (std::size_t index = 0; index < state.m_objects.size(); ++index) {
+        state.m_objects[index]->deserialize_from_buffer(state.m_states[index], m_level.file().parent_path());
+    }
+
+    m_current_state = std::move(state);
+    m_level.update_end_position();
+    m_changes_pending = true;
+}
+
+void LevelEditor::copy_selection() {
+    pointer_up();
+    m_copied_objects = m_selection;
+}
+
+void LevelEditor::paste() {
+    pointer_up();
+    if (m_copied_objects.empty()) {
+        return;
+    }
+
+    m_selection.clear();
+    for (const auto* source : m_copied_objects) {
+        auto& object = m_level.create_object(source->type());
+        object.deserialize_from_buffer(source->serialize_to_buffer(), m_level.file().parent_path());
+        m_selection.push_back(&object);
+    }
+
+    m_mode = EditorMode::Select;
+    mark_changed();
 }
 
 void LevelEditor::mark_saved() {
@@ -103,7 +175,9 @@ void LevelEditor::update(bool pointer_over_ui, bool debugger_open) {
     const float wheel = GetMouseWheelMoveV().y;
 
     if (wheel != 0.0F) {
-        camera.view().zoom = Clamp(camera.view().zoom + wheel * 0.25F, 0.1F, 10.0F);
+        float target_zoom = camera.view().zoom;
+        target_zoom += (wheel > 0) ? 0.125f : -0.125f;
+        camera.view().zoom = Clamp(target_zoom, 0.1F, 10.0F);
     }
 
     pointer_move(pointer, snap);
@@ -170,7 +244,7 @@ void LevelEditor::begin_interaction(InteractionMode mode, Vector2 screen_positio
                  std::max(previous.y + previous.height, bounds.y + bounds.height)}
             );
         }
-        m_interaction.m_objects.push_back({entity, body->get_position(), body->get_dimensions(), body->get_rotation()});
+        m_interaction.m_objects.push_back({entity, body->get_position(), body->get_size(), body->get_rotation()});
     }
 }
 
@@ -215,10 +289,10 @@ void LevelEditor::resize_selected(Vector2 delta) {
         size = Vector2Scale(start.m_size, std::max(factor, MINIMUM_SIZE / std::min(start.m_size.x, start.m_size.y)));
     }
 
-    body.set_dimensions(size);
+    body.set_size(size, {0.5F, 0.5F});
 
-    // use the accepted dimensions to keep the opposite corner fixed if physics rejects a resize
-    const Vector2 offset = Vector2Scale(Vector2Multiply(Vector2Subtract(body.get_dimensions(), start.m_size), direction), 0.5F);
+    // use the accepted size to keep the opposite corner fixed if physics rejects a resize
+    const Vector2 offset = Vector2Scale(Vector2Multiply(Vector2Subtract(body.get_size(), start.m_size), direction), 0.5F);
     const Vector2 position = Vector2Add(start.m_position, Vector2Rotate(offset, start.m_rotation * DEG2RAD));
     body.set_position(position.x, position.y);
 }
@@ -272,8 +346,7 @@ void LevelEditor::pointer_up() {
                 continue;
             }
             const Rectangle bounds = object_bounds(*body, m_interaction.m_camera);
-            if (CheckCollisionPointRec({bounds.x, bounds.y}, *rectangle) &&
-                CheckCollisionPointRec({bounds.x + bounds.width, bounds.y + bounds.height}, *rectangle)) {
+            if (CheckCollisionRecs(bounds, *rectangle)) {
                 objects.push_back(entity);
             }
         }
@@ -282,7 +355,7 @@ void LevelEditor::pointer_up() {
 
     for (const auto& start : m_interaction.m_objects) {
         const auto* body = start.m_entity->get_component<RigidBody>();
-        if (!Vector2Equals(body->get_position(), start.m_position) || !Vector2Equals(body->get_dimensions(), start.m_size)) {
+        if (!Vector2Equals(body->get_position(), start.m_position) || !Vector2Equals(body->get_size(), start.m_size)) {
             mark_changed();
             break;
         }
@@ -314,6 +387,9 @@ void LevelEditor::set_mode(EditorMode mode) {
 void LevelEditor::reset() {
     pointer_up();
     m_selection.clear();
+    m_copied_objects.clear();
+    m_history.clear();
+    m_current_state = snapshot();
 }
 
 bool LevelEditor::clear_selection() {

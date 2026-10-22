@@ -6,6 +6,7 @@
 class Sprite;
 class CameraView;
 class Dash;
+class DashLevel;
 
 enum class PlayerType : int {
     NONE = -1,
@@ -40,7 +41,7 @@ public:
     }
 
     void movement(float fixed_frametime);
-    void update_camera(CameraView& camera, bool snap = false);
+    void update_camera(CameraView& camera, const DashLevel& level, bool snap = false);
 
     void update_player_type(PlayerType player_type);
 

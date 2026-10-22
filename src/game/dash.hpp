@@ -63,6 +63,8 @@ public:
     bool has_finished_level() const;
 
     bool load_level(DashLevel& level, bool editor = false, bool force_free_mode = false);
+    DashLevel* create_level(const LevelMetadata& metadata);
+    bool remove_level(DashLevel& level);
     bool start_level();
     void unload_current_level();
     bool restart_current_level();

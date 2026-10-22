@@ -3,6 +3,7 @@
 #include "game/ui/controls.hpp"
 
 class DashLevel;
+class EditorIconButton;
 namespace ui {
     class Container;
     class TextWidget;
@@ -11,6 +12,8 @@ namespace ui {
 class LevelCard : public DashButton {
 public:
     explicit LevelCard(const DashLevel& level);
+    void on_remove(std::function<void()> callback);
+    void set_removable(bool removable);
 
 protected:
     void apply_theme_defaults(const ui::Theme& theme) override;
@@ -22,4 +25,5 @@ private:
     ui::Container* m_content = nullptr;
     ui::TextWidget* m_name = nullptr;
     ui::TextWidget* m_description = nullptr;
+    EditorIconButton* m_remove_button = nullptr;
 };

@@ -1,31 +1,39 @@
 #include "overlay.hpp"
+#include "game/ui/widgets/modal-header.hpp"
+#include "game/ui/theme.hpp"
 
 #include <imgui-ui/surface.hpp>
 #include <utility>
 
 using namespace ui;
 
-Overlay::Overlay(std::string id, TransitionSpec transition, bool animate_scale)
+Overlay::Overlay(std::string id, TransitionSpec transition, bool animate_scale, bool with_header, std::string header_title)
     : LayerContainer(std::move(id)), m_transition(transition), m_animate_scale(animate_scale) {
     set_size({fit(), fit()});
     set_anchor(Anchor::Center);
 
-    // block pointer input behind the panel and route keyboard input to its subtree.
+    // block underlying pointer input and route keys to this subtree.
     set_input_mode(InputMode::Blocker);
     set_input_enabled(false);
     set_visible(false);
 
-    configure_all_styles([](Style& style) {
-        style.scale({1.0F, 1.0F});
-        style.padding({16.0F, 16.0F});
-        style.background_color(rgb(16, 16, 16));
-        style.border(BorderEdge{2.0F, BorderType::Solid});
-        style.border_color(rgba(160, 160, 160, 60));
-    });
+    if (with_header) {
+        add<DashModalHeader>(std::move(header_title), [this] {
+            if (m_on_close) m_on_close();
+        });
+    }
+    m_content = &add<Container>("overlay-content");
+    m_content->set_size({grow(), grow()});
+
+    configure_all_styles([](Style& style) { style.scale({1.0F, 1.0F}); });
 }
 
 void Overlay::on_key_press(InputCallback callback) {
     m_on_key_press = std::move(callback);
+}
+
+void Overlay::on_close(std::function<void()> callback) {
+    m_on_close = std::move(callback);
 }
 
 void Overlay::key_press_event(UiEvent& event) {
@@ -63,5 +71,6 @@ void Overlay::hide(bool scale) {
 
 void Overlay::apply_theme_defaults(const Theme& theme) {
     LayerContainer::apply_theme_defaults(theme);
+    configure_all_styles([&theme](Style& style) { dash_ui::panel_style(style, theme); });
     set_font(surface().get_primary_font(), 28);
 }

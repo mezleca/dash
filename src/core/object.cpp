@@ -1,5 +1,6 @@
 #include "object.hpp"
 #include "core/components/sprite.hpp"
+#include "core/components/particles.hpp"
 #include "core/serialization/json.hpp"
 
 #include <algorithm>
@@ -126,6 +127,8 @@ void GameObject::deserialize(Deserializer& deserializer, const std::filesystem::
             (*component)->deserialize(deserializer, directory);
         } else if (id == ComponentId::Sprite) {
             add_component<Sprite>().deserialize(deserializer, directory);
+        } else if (id == ComponentId::Particles) {
+            add_component<Particles>().deserialize(deserializer, directory);
         } else {
             std::cerr << "[object] warning: unknown component id " << raw_id << "\nskipping component\n";
         }

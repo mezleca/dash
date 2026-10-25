@@ -25,7 +25,6 @@ public:
     void run();
     void exit();
 
-    // create and store objects
     template <class T, class... Args>
     T& add_object(Args&&... args) {
         auto object = std::make_unique<T>(std::forward<Args>(args)...);
@@ -35,8 +34,7 @@ public:
         return result;
     }
 
-    // mark GameObject as pending for removal
-    // and remove it on the end of the current frame
+    // destroys the object after the current frame.
     void remove_object(GameObject* object);
     void clear_objects();
 

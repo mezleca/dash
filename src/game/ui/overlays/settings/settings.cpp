@@ -3,26 +3,19 @@
 #include "game/ui/controls.hpp"
 #include "game/ui/widgets/dash-number-input.hpp"
 
-#include <imgui-ui/widgets/text.hpp>
-
 using namespace ui;
 
-SettingsOverlay::SettingsOverlay(Dash& game, std::string id) : Overlay("settings-" + id), m_game(game) {
+SettingsOverlay::SettingsOverlay(Dash& game, std::string id)
+    : Overlay("settings-" + id, dash_ui::panel_transition, true, true, "settings"), m_game(game) {
     m_volume = m_game.settings().volume();
     m_godmode = m_game.settings().godmode();
     m_free_mode = m_game.free_mode();
 
     set_size({percent(50.0F), percent(50.0F)}, {percent(80.0F), percent(80.0F)});
-    set_content_alignment(Anchor::TopLeft);
-    set_spacing(6.0F);
-    configure_all_styles([](Style& style) { style.padding({16.0F, 12.0F}); });
+    content().set_content_alignment(Anchor::TopLeft);
+    content().set_spacing(4.0F);
 
-    auto& heading = add<Container>("settings-heading");
-    heading.set_size({grow(), fit()});
-    heading.set_content_alignment(Anchor::Center);
-    heading.add<TextWidget>("settings");
-
-    auto& options = add<Container>("settings-options");
+    auto& options = content().add<Container>("settings-options");
     options.set_size({grow(), fit()});
     options.set_spacing(4.0F);
 

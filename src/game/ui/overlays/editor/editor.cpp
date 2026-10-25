@@ -1,13 +1,15 @@
 #include "editor.hpp"
 #include "game/dash.hpp"
 #include "game/editor/editor.hpp"
+#include "game/ui/theme.hpp"
 #include "core/components/rigid-body.hpp"
+#include "game/objects/world/invisible-sprite.hpp"
 #include "controls.hpp"
 #include "properties-panel.hpp"
+#include "library-panel.hpp"
+#include "behaviour-dialog.hpp"
 
-#include <array>
 #include <utility>
-#include <raymath.h>
 #include <imgui-ui/surface.hpp>
 #include <imgui-ui/runtime.hpp>
 #include <imgui-ui/diagnostics/debugger.hpp>
@@ -16,56 +18,48 @@
 
 using namespace ui;
 
-static std::array<Vector2, 4> selection_corners(const RigidBody& body, const Viewport& viewport) {
-    const Rectangle bounds = body.get_bounding_box();
-    const Vector2 center = {bounds.x + bounds.width * 0.5F, bounds.y + bounds.height * 0.5F};
-    std::array<Vector2, 4> corners = {
-        {{bounds.x, bounds.y},
-         {bounds.x + bounds.width, bounds.y},
-         {bounds.x + bounds.width, bounds.y + bounds.height},
-         {bounds.x, bounds.y + bounds.height}}
-    };
-    for (auto& corner : corners) {
-        corner = Vector2Add(center, Vector2Rotate(Vector2Subtract(corner, center), body.get_rotation() * DEG2RAD));
-        corner = GetWorldToScreen2D(corner, viewport.camera().view());
-    }
-    return corners;
-}
-
 class EditorPanel : public LayerContainer {
 public:
-    EditorPanel(Dash& game, Surface& ui_surface, InputCallback on_key_press, std::function<void()> on_exit);
+    EditorPanel(
+        Dash& game, Surface& ui_surface, InputCallback on_key_press, std::function<void()> on_exit,
+        std::function<void(Entity&, Behaviour*)> open_behaviour_dialog
+    );
     bool has_unsaved_changes() const;
     void reset();
+    void behaviours_changed();
 
 protected:
+    void apply_theme_defaults(const Theme& theme) override;
     void on_update(float frametime) override;
 
 private:
     void event(UiEvent& event) override;
     void key_press_event(UiEvent& event) override;
     void set_mode(EditorMode mode);
-    void build_library(Container& body);
     void draw_selection(const LevelEditor& editor, const Viewport& viewport);
+    void draw_label(const Entity& object, const LevelEditor& editor, const Viewport& viewport);
 
     Dash& m_game;
     InputCallback m_on_key_press;
+
     Container* m_game_space = nullptr;
-    Container* m_tab_body = nullptr;
-    EditorTabButton* m_library_tab = nullptr;
+    Container* m_tools = nullptr;
+    Container* m_bottom = nullptr;
+
     EditorModeButton* m_move_button = nullptr;
     EditorModeButton* m_select_button = nullptr;
     PropertiesPanel* m_properties = nullptr;
     DashButton* m_update_button = nullptr;
-    LevelEditor* m_editor = nullptr;
-    bool m_initialized = false;
 };
 
-EditorPanel::EditorPanel(Dash& game, Surface& ui_surface, InputCallback on_key_press, std::function<void()> on_exit)
+EditorPanel::EditorPanel(
+    Dash& game, Surface& ui_surface, InputCallback on_key_press, std::function<void()> on_exit,
+    std::function<void(Entity&, Behaviour*)> open_behaviour_dialog
+)
     : LayerContainer("editor-panel"), m_game(game), m_on_key_press(std::move(on_key_press)) {
     set_size({grow(), grow()});
     set_direction(StackDirection::Vertical);
-    set_spacing(6.0F);
+    set_spacing(4.0F);
     set_input_mode(InputMode::None);
 
     configure_all_styles([](Style& style) {
@@ -75,6 +69,7 @@ EditorPanel::EditorPanel(Dash& game, Surface& ui_surface, InputCallback on_key_p
     });
 
     auto& mode_row = add<Container>("editor-mode-row", StackDirection::Horizontal);
+    m_tools = &mode_row;
     mode_row.set_size({grow(), fit()});
     mode_row.set_input_mode(InputMode::None);
 
@@ -102,7 +97,7 @@ EditorPanel::EditorPanel(Dash& game, Surface& ui_surface, InputCallback on_key_p
 
     auto& actions = mode_row.add<Container>("editor-actions", StackDirection::Horizontal);
     actions.set_size({fit(), fit()});
-    actions.set_spacing(6.0F);
+    actions.set_spacing(4.0F);
     actions.set_anchor(Anchor::TopRight);
     m_update_button = &actions.add<DashButton>("update");
     m_update_button->set_visible(false);
@@ -112,15 +107,14 @@ EditorPanel::EditorPanel(Dash& game, Surface& ui_surface, InputCallback on_key_p
         }
     });
 
-    auto* close_icon = ui_surface.runtime().textures().add("editor-close", RESOURCES_LOCATION / "ui/close.svg");
-    actions.add<EditorIconButton>(close_icon).on_click(std::move(on_exit));
+    actions.add<DashCloseButton>().on_click(std::move(on_exit));
 
     auto& workspace = add<Container>("editor-workspace", StackDirection::Horizontal);
-    workspace.set_size({grow(), percent(60.0F)});
-    workspace.set_spacing(6.0F);
+    workspace.set_size({grow(), percent(65.0F)});
+    workspace.set_spacing(4.0F);
     workspace.set_input_mode(InputMode::None);
 
-    m_properties = &workspace.add<PropertiesPanel>(game);
+    m_properties = &workspace.add<PropertiesPanel>(game, std::move(open_behaviour_dialog));
 
     m_game_space = &workspace.add<Container>("editor-game-space");
     m_game_space->set_size({grow(), grow()});
@@ -132,41 +126,51 @@ EditorPanel::EditorPanel(Dash& game, Surface& ui_surface, InputCallback on_key_p
     });
 
     auto& bottom = add<Container>("editor-bottom");
+    m_bottom = &bottom;
     bottom.set_size({grow(), grow()});
     bottom.set_spacing(4.0F);
-    bottom.configure_all_styles([](Style& style) {
-        style.background_color(rgba(33, 34, 38, 240));
-        style.border(BorderEdge{1.0F, BorderType::Solid});
-        style.border_color(rgba(149, 204, 221, 60));
-        style.border_radius(4.0F);
-        style.padding({8.0F, 6.0F});
-    });
 
     auto& tab_bar = bottom.add<Container>("editor-tab-bar", StackDirection::Horizontal);
     tab_bar.set_size({grow(), fit()});
-    tab_bar.set_spacing(2.0F);
+    tab_bar.configure_all_styles([](Style& style) {
+        style.border_radius(0.0F);
+        style.border_bottom(1.0F);
+        style.border_color(rgba(149, 204, 221, 60));
+    });
+    tab_bar.set_spacing(12.0F);
     tab_bar.set_input_mode(InputMode::None);
 
-    m_library_tab = &tab_bar.add<EditorTabButton>("library");
+    tab_bar.add<EditorTabButton>("library", true);
 
-    m_tab_body = &bottom.add<Container>("editor-tab-body");
-    m_tab_body->set_size({grow(), grow()});
-    m_tab_body->set_scrollable(true);
-    m_tab_body->set_spacing(6.0F);
-    m_tab_body->configure_all_styles([](Style& style) { style.padding({8.0F, 0.0F}); });
+    auto& tab_body = bottom.add<Container>("editor-tab-body");
+    tab_body.set_size({grow(), grow()});
+    tab_body.set_spacing(4.0F);
+    tab_body.configure_all_styles([](Style& style) { style.padding({12.0F, 4.0F}); });
+    tab_body.add<LibraryPanel>(game);
+}
+
+void EditorPanel::apply_theme_defaults(const Theme& theme) {
+    LayerContainer::apply_theme_defaults(theme);
+    m_bottom->configure_all_styles([&theme](Style& style) { dash_ui::editor_panel_style(style, theme); });
 }
 
 void EditorPanel::on_update(float) {
-    if (!m_initialized) {
-        m_initialized = true;
-        m_library_tab->set_selected(true);
-        build_library(*m_tab_body);
+    LevelEditor* editor = m_game.editor();
+    const bool picking = editor != nullptr && editor->mode() == EditorMode::PickTarget;
+
+    m_tools->set_input_enabled(!picking);
+    m_bottom->set_input_enabled(!picking);
+    m_properties->set_input_enabled(!picking);
+
+    const bool keyboard_available = editor != nullptr && editor->mode() != EditorMode::PickTarget && input_enabled() &&
+                                    parent()->input_enabled() && !surface().debugger()->is_open() &&
+                                    !ImGui::GetIO().WantTextInput;
+
+    if (keyboard_available && IsKeyPressed(KEY_DELETE)) {
+        editor->handle_event({EditorEventType::Delete});
     }
 
-    LevelEditor* editor = m_game.editor();
-
-    if (editor != nullptr && !surface().debugger()->is_open() && !ImGui::GetIO().WantTextInput &&
-        (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL))) {
+    if (keyboard_available && (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL))) {
         if (IsKeyPressed(KEY_Z)) {
             editor->undo();
             m_properties->refresh();
@@ -174,25 +178,23 @@ void EditorPanel::on_update(float) {
             editor->copy_selection();
         } else if (IsKeyPressed(KEY_V)) {
             editor->paste();
-            set_mode(editor->mode());
         }
     }
 
     m_update_button->set_visible(editor != nullptr && has_unsaved_changes());
-    if (editor != m_editor) {
-        m_editor = editor;
-        if (editor != nullptr) {
-            set_mode(editor->mode());
-        }
+    if (editor != nullptr) {
+        m_move_button->set_selected(editor->mode() == EditorMode::Move);
+        m_select_button->set_selected(editor->mode() == EditorMode::Select);
     }
 
     const ui::Rect rect = m_game_space->layout().visual_rect();
+
     if (rect.valid()) {
         if (auto* viewport = m_game.get_viewport(0)) {
             const ImVec2 size = rect.size();
             viewport->set_position({rect.min.x, rect.min.y});
             viewport->set_size({size.x, size.y});
-            if (editor != nullptr && parent()->input_enabled()) {
+            if (editor != nullptr && input_enabled() && parent()->input_enabled()) {
                 draw_selection(*editor, *viewport);
             }
         }
@@ -205,9 +207,13 @@ bool EditorPanel::has_unsaved_changes() const {
 }
 
 void EditorPanel::reset() {
-    m_editor = nullptr;
     m_properties->reset();
     m_update_button->set_visible(false);
+}
+
+void EditorPanel::behaviours_changed() {
+    if (auto* editor = m_game.editor()) editor->mark_changed();
+    m_properties->refresh_behaviours();
 }
 
 void EditorPanel::draw_selection(const LevelEditor& editor, const Viewport& viewport) {
@@ -219,13 +225,20 @@ void EditorPanel::draw_selection(const LevelEditor& editor, const Viewport& view
     auto* drawlist = ImGui::GetForegroundDrawList();
     drawlist->PushClipRect({origin.x, origin.y}, {origin.x + size.x, origin.y + size.y}, true);
 
+    auto* font = surface().get_primary_font();
+    ImGui::PushFont(font != nullptr ? font : ImGui::GetFont(), 18.0F);
+    for (const auto* object : m_game.current_level()->objects())
+        draw_label(*object, editor, viewport);
+    if (const auto* preview = editor.preview_object()) draw_label(*preview, editor, viewport);
+    ImGui::PopFont();
+
     for (const auto* entity : editor.selected_objects()) {
         const auto* body = entity->get_component<RigidBody>();
         if (body == nullptr) {
             continue;
         }
 
-        const auto corners = selection_corners(*body, viewport);
+        const auto corners = editor.selection_corners(*entity);
         ImVec2 points[4];
         for (std::size_t index = 0; index < corners.size(); ++index) {
             points[index] = {origin.x + corners[index].x, origin.y + corners[index].y};
@@ -253,12 +266,24 @@ void EditorPanel::draw_selection(const LevelEditor& editor, const Viewport& view
     drawlist->PopClipRect();
 }
 
+void EditorPanel::draw_label(const Entity& object, const LevelEditor& editor, const Viewport& viewport) {
+    const auto* sprite = object.get_component<InvisibleSprite>();
+    if (sprite == nullptr || !object.is_visible()) return;
+
+    const auto corners = editor.selection_corners(object);
+    const Vector2 origin = viewport.position();
+    const ImVec2 size = ImGui::CalcTextSize(sprite->label().c_str());
+    const ImVec2 position = {
+        origin.x + (corners[0].x + corners[2].x - size.x) * 0.5F, origin.y + (corners[0].y + corners[2].y - size.y) * 0.5F
+    };
+    ImGui::GetForegroundDrawList()->AddText(position, IM_COL32_WHITE, sprite->label().c_str());
+}
+
 void EditorPanel::key_press_event(UiEvent& event) {
     if (m_on_key_press) m_on_key_press(event);
 }
 
 void EditorPanel::event(UiEvent& event) {
-    // ignora native text fields (imgui) and other shortcuts
     if (event.propagation_stopped || event.type != EventType::TextInput || ImGui::GetIO().WantTextInput ||
         IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) || IsKeyDown(KEY_LEFT_ALT) || IsKeyDown(KEY_RIGHT_ALT) ||
         IsKeyDown(KEY_LEFT_SUPER) || IsKeyDown(KEY_RIGHT_SUPER)) {
@@ -280,24 +305,31 @@ void EditorPanel::event(UiEvent& event) {
 void EditorPanel::set_mode(EditorMode mode) {
     if (auto* editor = m_game.editor()) {
         editor->set_mode(mode);
+        mode = editor->mode();
     }
 
     m_move_button->set_selected(mode == EditorMode::Move);
     m_select_button->set_selected(mode == EditorMode::Select);
 }
 
-void EditorPanel::build_library(Container& body) {
-    body.add<TextWidget>("not implemented yet");
-}
-
 EditorOverlay::EditorOverlay(Dash& game, Surface& ui_surface, InputCallback on_key_press, std::function<void()> on_exit)
-    : LayerContainer("editor") {
+    : LayerContainer("editor"), m_game(game) {
     set_size({grow(), grow()});
     set_input_mode(InputMode::None);
     set_input_enabled(false);
     set_visible(false);
 
-    m_panel = &add<EditorPanel>(game, ui_surface, std::move(on_key_press), std::move(on_exit));
+    m_panel = &add<EditorPanel>(
+        game, ui_surface, std::move(on_key_press), std::move(on_exit), [this, &game](Entity& object, Behaviour* behaviour) {
+            if (auto* editor = game.editor()) editor->handle_event({EditorEventType::FinishInteraction});
+            m_behaviour_dialog->open(object, behaviour);
+        }
+    );
+    m_behaviour_dialog = &add<BehaviourDialog>(game, [this] { m_panel->behaviours_changed(); });
+    m_behaviour_dialog->on_state_change([this](ModalState state) {
+        m_panel->set_input_enabled(state != ModalState::Open);
+        if (state == ModalState::Closed) surface().input_router().set_focus(m_panel);
+    });
 }
 
 bool EditorOverlay::has_unsaved_changes() const {
@@ -305,7 +337,106 @@ bool EditorOverlay::has_unsaved_changes() const {
 }
 
 void EditorOverlay::reset() {
+    m_behaviour_dialog->close();
     m_panel->reset();
+}
+
+bool EditorOverlay::close_behaviour_dialog() {
+    if (!m_behaviour_dialog->visible()) {
+        return false;
+    }
+
+    if (m_behaviour_dialog->state() == ModalState::Minimized) {
+        m_behaviour_dialog->cancel_target_selection();
+        return true;
+    }
+
+    m_behaviour_dialog->close();
+
+    return true;
+}
+
+bool EditorOverlay::behaviour_dialog_open() const {
+    return m_behaviour_dialog->state() == ModalState::Open;
+}
+
+bool EditorOverlay::input_available() const {
+    return m_game.editor() != nullptr && m_game.level_state() == LevelState::EDITING && !surface().debugger()->is_open() &&
+           IsWindowFocused();
+}
+
+void EditorOverlay::process_pointer_event(UiEvent& event, bool pointer_over_ui) {
+    if (!input_available()) {
+        return;
+    }
+
+    auto* viewport = m_game.get_viewport(0);
+
+    if (viewport == nullptr) {
+        return;
+    }
+
+    EditorEvent input = {EditorEventType::PointerMove};
+    const Vector2 origin = viewport->position();
+
+    input.m_position = {event.position.x - origin.x, event.position.y - origin.y};
+    input.m_snap = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+
+    switch (event.type) {
+        case EventType::PointerDown:
+        case EventType::PointerUp:
+            if (event.button != PointerButton::Left && event.button != PointerButton::Right) {
+                return;
+            }
+
+            input.m_button = event.button == PointerButton::Right ? MOUSE_BUTTON_RIGHT : MOUSE_BUTTON_LEFT;
+            input.m_type = event.type == EventType::PointerDown ? EditorEventType::PointerDown : EditorEventType::PointerUp;
+            break;
+        case EventType::PointerMove:
+            break;
+        case EventType::Scroll:
+            input.m_type = EditorEventType::Scroll;
+            input.m_scroll = event.scroll.y;
+            break;
+        default:
+            return;
+    }
+
+    // allow releases over panels, but start interactions inside the viewport.
+    if ((input.m_type == EditorEventType::PointerDown || input.m_type == EditorEventType::Scroll) &&
+        (pointer_over_ui || !viewport->contains_mouse())) {
+        return;
+    }
+
+    m_game.editor()->handle_event(input);
+}
+
+void EditorOverlay::update_input(bool active) {
+    auto* editor = m_game.editor();
+
+    if (editor == nullptr || m_game.level_state() != LevelState::EDITING) {
+        return;
+    }
+
+    // commit native edits after release or focus loss.
+    if (!IsWindowFocused() || (!IsMouseButtonDown(MOUSE_LEFT_BUTTON) && !ImGui::IsAnyItemActive())) {
+        editor->commit_changes();
+    }
+
+    if (!active || !input_available()) {
+        editor->handle_event({EditorEventType::FinishInteraction});
+        return;
+    }
+
+    if (auto* viewport = m_game.get_viewport(0)) {
+        const bool snap = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+
+        // refresh modifiers and recover intercepted releases.
+        const int button = editor->pointer_button();
+        const auto type = IsMouseButtonDown(button) ? EditorEventType::PointerMove : EditorEventType::PointerUp;
+
+        editor->handle_event({type, viewport->mouse_position(), 0.0F, snap, button});
+    }
 }
 
 void EditorOverlay::apply_theme_defaults(const Theme& theme) {

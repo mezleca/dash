@@ -2,15 +2,13 @@
 #include "rigid-body.hpp"
 #include "core/object.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <rlgl.h>
 #include <iostream>
 
 Sprite::Sprite(GameObject& object, SpriteType sprite_type, Color color)
-    : Sprite(object, ComponentId::Sprite, sprite_type, color) {}
-
-Sprite::Sprite(GameObject& object, ComponentId id, SpriteType sprite_type, Color color)
-    : Component(object, id), tint(color), type(sprite_type) {}
+    : Component(object, ComponentId::Sprite), tint(color), type(sprite_type) {}
 
 const char* Sprite::type_to_str(SpriteType type) {
     switch (type) {
@@ -35,26 +33,17 @@ Sprite::~Sprite() {
     }
 }
 
-void Sprite::load_texture(const char* location) {
-    if (m_texture.id) {
-        UnloadTexture(m_texture);
-    }
-
-    m_texture = {};
-    m_texture_location.clear();
-
-    if (location[0] == '\0') return;
-
-    m_texture = LoadTexture(location);
-
-    if (!IsTextureValid(m_texture)) {
+bool Sprite::load_texture(const char* location) {
+    Texture2D texture = {};
+    if (location[0] != '\0') texture = LoadTexture(location);
+    if (location[0] != '\0' && !IsTextureValid(texture)) {
         std::cout << "[sprite] failed to load texture from " << location << "\n";
-        m_texture = {};
-        m_texture_location.clear();
-        return;
+        return false;
     }
-
+    if (m_texture.id) UnloadTexture(m_texture);
+    m_texture = texture;
     m_texture_location = location;
+    return true;
 }
 
 void Sprite::render(Rectangle bounds, const Camera2D&, Vector2) const {
@@ -64,35 +53,37 @@ void Sprite::render(Rectangle bounds, const Camera2D&, Vector2) const {
 }
 
 void Sprite::render_centered(Rectangle bounds) const {
-    // place each shape at its center before scaling normalized vertices to the bounds.
+    // scale normalized vertices around the center.
     rlPushMatrix();
     rlTranslatef(bounds.x, bounds.y, 0.0f);
     rlRotatef(flip_x ? -rotation : rotation, 0.0f, 0.0f, 1.0f);
     rlScalef(bounds.width, bounds.height, 1.0f);
 
     const bool textured = IsTextureValid(m_texture);
+    Color color = tint;
+    color.a = static_cast<unsigned char>(static_cast<float>(tint.a) * std::clamp(opacity, 0.0F, 1.0F));
 
     if (type == SpriteType::SQUARE && textured) {
         const float width = static_cast<float>(m_texture.width);
         const Rectangle source = {0.0f, 0.0f, flip_x ? -width : width, static_cast<float>(m_texture.height)};
-        DrawTexturePro(m_texture, source, {-0.5f, -0.5f, 1.0f, 1.0f}, {}, 0.0f, tint);
+        DrawTexturePro(m_texture, source, {-0.5f, -0.5f, 1.0f, 1.0f}, {}, 0.0f, color);
     } else if (type == SpriteType::SQUARE) {
-        DrawRectanglePro({-0.5f, -0.5f, 1.0f, 1.0f}, {}, 0.0f, tint);
+        DrawRectanglePro({-0.5f, -0.5f, 1.0f, 1.0f}, {}, 0.0f, color);
     } else if (textured) {
-        render_textured_shape();
+        render_textured_shape(color);
     } else if (type == SpriteType::TRIANGLE) {
-        DrawTriangle({0.0f, -0.5f}, {-0.5f, 0.5f}, {0.5f, 0.5f}, tint);
+        DrawTriangle({0.0f, -0.5f}, {-0.5f, 0.5f}, {0.5f, 0.5f}, color);
     } else {
-        DrawEllipseV({}, 0.5f, 0.5f, tint);
+        DrawEllipseV({}, 0.5f, 0.5f, color);
     }
 
     rlPopMatrix();
 }
 
-void Sprite::render_textured_shape() const {
+void Sprite::render_textured_shape(Color color) const {
     rlSetTexture(m_texture.id);
     rlBegin(RL_TRIANGLES);
-    rlColor4ub(tint.r, tint.g, tint.b, tint.a);
+    rlColor4ub(color.r, color.g, color.b, color.a);
 
     const auto vertex = [&](float x, float y) {
         rlTexCoord2f(flip_x ? 0.5f - x : x + 0.5f, y + 0.5f);
@@ -134,6 +125,7 @@ void Sprite::deserialize(Deserializer& deserializer, const std::filesystem::path
     rotation = 0.0f;
     flip_x = false;
     tint = WHITE;
+    opacity = 1.0F;
 
     deserializer.field("type", sprite_type);
     deserializer.field("texture", texture);
@@ -146,11 +138,6 @@ void Sprite::deserialize(Deserializer& deserializer, const std::filesystem::path
     if (type > SpriteType::CIRCLE) {
         std::cerr << "[sprite] warning: invalid sprite type\nusing square\n";
         type = SpriteType::SQUARE;
-    }
-
-    if (!std::isfinite(rotation)) {
-        std::cerr << "[sprite] warning: nonfinite rotation\nusing 0 degrees\n";
-        rotation = 0.0f;
     }
 
     if (!texture.empty()) {

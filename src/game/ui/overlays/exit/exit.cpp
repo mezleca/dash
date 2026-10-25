@@ -9,13 +9,12 @@ using namespace ui;
 
 ExitOverlay::ExitOverlay(std::string id, std::string message, std::function<void()> on_confirm, std::function<void()> on_cancel)
     : Overlay("exit-" + id) {
-    set_content_alignment(Anchor::Center);
-    set_spacing(10.0F);
-    configure_all_styles([](Style& style) { style.padding({32.0F, 24.0F}); });
+    content().set_content_alignment(Anchor::Center);
+    content().set_spacing(10.0F);
 
-    add<TextWidget>(std::move(message));
+    content().add<TextWidget>(std::move(message));
 
-    auto& actions = add<Container>("exit-actions", StackDirection::Horizontal);
+    auto& actions = content().add<Container>("exit-actions", StackDirection::Horizontal);
     actions.set_size({grow(), fit()});
     actions.set_content_alignment(Anchor::Center);
     actions.set_spacing(8.0F);

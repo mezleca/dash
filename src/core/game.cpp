@@ -35,7 +35,7 @@ void Game::clear_objects() {
 void Game::remove_pending_objects() {
     auto entry = std::find_if(m_objects.begin(), m_objects.end(), [](const auto& object) { return object->m_removed; });
     while (entry != m_objects.end()) {
-        // detach before destruction because an object's destructor can mark other objects for removal.
+        // detach first because destructors can queue more removals.
         auto removed = std::move(*entry);
         m_objects.erase(entry);
         std::erase(m_render_objects, removed.get());
@@ -58,20 +58,13 @@ void Game::update() {
 void Game::render() {
     const auto compare = [](const GameObject* a, const GameObject* b) { return a->z_order() < b->z_order(); };
 
-    // order GameObject by its index before rendering
     if (!std::is_sorted(m_render_objects.begin(), m_render_objects.end(), compare)) {
         std::stable_sort(m_render_objects.begin(), m_render_objects.end(), compare);
     }
 
     for (const auto& viewport : m_viewports) {
-        if (viewport == nullptr) {
-            continue;
-        }
-
         viewport->begin();
-        {
-            render_viewport(*viewport);
-        }
+        render_viewport(*viewport);
         viewport->end();
     }
 }
@@ -81,11 +74,7 @@ void Game::render_viewport(Viewport& viewport) {
 
     BeginMode2D(camera.view());
     for (const GameObject* object : m_render_objects) {
-        if (object->m_removed || !object->visible) {
-            continue;
-        }
-
-        if ((object->render_mask() & viewport.mask()) == 0) {
+        if (object->m_removed || !object->visible || (object->render_mask() & viewport.mask()) == 0) {
             continue;
         }
 
@@ -97,23 +86,16 @@ void Game::render_viewport(Viewport& viewport) {
 }
 
 Viewport& Game::create_viewport(ViewportId id) {
-    auto viewport = std::make_unique<Viewport>(id);
-    auto& ref = *viewport;
-    m_viewports.push_back(std::move(viewport));
-    return ref;
+    return *m_viewports.emplace_back(std::make_unique<Viewport>(id));
 }
 
 Viewport* Game::get_viewport(size_t index) const {
-    if (index >= m_viewports.size()) {
-        return nullptr;
-    }
-
-    return m_viewports.at(index).get();
+    return index < m_viewports.size() ? m_viewports[index].get() : nullptr;
 }
 
 CameraView* Game::camera_for(const GameObject& object) const {
     for (const auto& viewport : m_viewports) {
-        if (viewport != nullptr && (object.render_mask() & viewport->mask()) != 0) {
+        if ((object.render_mask() & viewport->mask()) != 0) {
             return &viewport->camera();
         }
     }
@@ -124,7 +106,6 @@ CameraView* Game::camera_for(const GameObject& object) const {
 void Game::run() {
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
-    // configure raylib
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(m_window.width, m_window.height, m_window.title.c_str());
     InitAudioDevice();
@@ -132,7 +113,7 @@ void Game::run() {
     SetExitKey(0);
 
     for (const auto& viewport : m_viewports) {
-        if (viewport != nullptr && viewport->size().x <= 0.0f) {
+        if (viewport->size().x <= 0.0f) {
             viewport->set_size({static_cast<float>(m_window.width), static_cast<float>(m_window.height)});
         }
     }
@@ -149,28 +130,20 @@ void Game::run() {
 
         const float frametime = GetFrameTime();
 
-        // update GameObjects
-        {
-            on_update(frametime);
-            update();
-        }
+        on_update(frametime);
+        update();
 
-        // render GameObjects
-        {
-            render();
-            on_render();
-        }
+        render();
+        on_render();
 
         remove_pending_objects();
     }
 
     on_shutdown();
 
-    // clear and remove objects
     clear_objects();
     remove_pending_objects();
 
-    // shutdown raylib
     CloseAudioDevice();
     CloseWindow();
 }

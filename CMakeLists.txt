@@ -33,9 +33,13 @@ find_package(OpenGL REQUIRED)
 FetchContent_Declare(
     imgui-ui
     GIT_REPOSITORY https://github.com/mezleca/imgui-ui
-    GIT_TAG b4d544bc18ddb5e0851600cf50a8f7b37276e80b
+    GIT_TAG 68a811c4b79c37502df7a4546aa3b90dc44a4023
 )
 FetchContent_MakeAvailable(imgui-ui)
+
+if(TARGET raylib)
+    target_compile_definitions(raylib PRIVATE SUPPORT_FILEFORMAT_JPG=1)
+endif()
 
 add_subdirectory(vendor/box2d)
 add_subdirectory(vendor/json)

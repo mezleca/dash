@@ -5,6 +5,12 @@
 #include <cstddef>
 #include <optional>
 
+struct CarouselPress {
+    float x;
+    float offset;
+    bool dragging = false;
+};
+
 class CarouselContainer : public ui::Container {
 public:
     explicit CarouselContainer(std::string id);
@@ -28,13 +34,7 @@ protected:
 private:
     void arrange_items();
 
-    struct Press {
-        float x;
-        float offset;
-        bool dragging = false;
-    };
-
-    std::optional<Press> m_press;
+    std::optional<CarouselPress> m_press;
     std::size_t m_selected = 0;
     float m_offset = 0.0F;
     std::optional<float> m_target;

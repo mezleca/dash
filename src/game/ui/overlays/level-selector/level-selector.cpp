@@ -3,7 +3,8 @@
 #include "../../widgets/carousel-container.hpp"
 #include "game/dash.hpp"
 #include "game/ui/controls.hpp"
-#include "game/ui/overlays/editor/controls.hpp"
+#include "game/ui/theme.hpp"
+#include "game/ui/widgets/modal-header.hpp"
 
 #include <imgui-ui/widgets/text.hpp>
 #include <imgui-ui/surface.hpp>
@@ -11,27 +12,33 @@
 
 using namespace ui;
 
+class CreateLevelCard : public DashButton {
+public:
+    CreateLevelCard() : DashButton("create", {percent(50), percent(50)}) {}
+
+protected:
+    void apply_theme_defaults(const Theme& theme) override {
+        DashButton::apply_theme_defaults(theme);
+
+        set_font(surface().get_primary_font(), 48.0F);
+        dash_ui::card_style(*this, theme);
+    }
+};
+
 LevelSelectorOverlay::LevelSelectorOverlay(Dash& game, std::string id, std::function<void(DashLevel&)> on_select)
     : Overlay("level-selector-" + id), m_game(game), m_on_select(std::move(on_select)) {
     set_size({grow(), grow()});
 
-    m_carousel = &add<CarouselContainer>("levels");
-    m_create_card = &m_carousel->add<DashButton>("create", LayoutSize{percent(50), percent(50)});
+    m_carousel = &content().add<CarouselContainer>("levels");
+    m_create_card = &m_carousel->add<CreateLevelCard>();
     m_create_card->set_visible(false);
-    m_create_card->configure_all_styles([](Style& style) {
-        style.font_size(48);
-        style.background_color(rgb(36, 36, 36));
-        style.padding({16.0F, 16.0F});
-        style.border_radius(4.0F);
-        style.border_thickness(2.0F);
-    });
     m_create_card->on_click([this] { show_create_panel(); });
 
     for (auto& entry : game.levels()) {
         add_level(*entry.second);
     }
 
-    m_empty_label = &add<TextWidget>("no levels found");
+    m_empty_label = &content().add<TextWidget>("no levels found");
     m_empty_label->set_anchor(Anchor::Center);
     m_empty_label->set_visible(game.levels().empty());
 
@@ -49,26 +56,13 @@ LevelSelectorOverlay::LevelSelectorOverlay(Dash& game, std::string id, std::func
     form.set_size({{px(420), px(0), percent(100)}, {fit(), px(0), percent(100)}});
     form.set_scrollable(true);
     form.set_spacing(10.0F);
-    form.configure_all_styles([](Style& style) {
-        style.background_color(rgb(33, 34, 38));
-        style.padding({24.0F, 20.0F});
-        style.border_radius(4.0F);
-    });
 
-    auto& label = form.add<TextWidget>("create level");
-    label.configure_all_styles([](Style& style) { style.font_size(26.0f); });
+    auto& header = form.add<DashModalHeader>("create level", [this] { cancel_creation(); });
+    header.configure_all_styles([](Style& style) { style.font_size(26.0F); });
 
-    auto& name = form.add<EditorTextInput>(m_name);
-    name.set_label("name", LabelPlacement::Above);
-    name.set_size({grow(), fit()});
-
-    auto& creator = form.add<EditorTextInput>(m_creator);
-    creator.set_label("creator", LabelPlacement::Above);
-    creator.set_size({grow(), fit()});
-
-    auto& description = form.add<EditorTextInput>(m_description);
-    description.set_label("description", LabelPlacement::Above);
-    description.set_size({grow(), fit()});
+    form.add<DashTextInput>(m_name, "name", LabelPlacement::Above);
+    form.add<DashTextInput>(m_creator, "creator", LabelPlacement::Above);
+    form.add<DashTextInput>(m_description, "description", LabelPlacement::Above);
 
     m_music_field = &form.add<DashDialog>("music");
     m_error_label = &form.add<TextWidget>("could not create level, check the name, creator and music file");
@@ -79,7 +73,6 @@ LevelSelectorOverlay::LevelSelectorOverlay(Dash& game, std::string id, std::func
     actions.set_size({grow(), fit()});
     actions.set_content_alignment(Anchor::CenterRight);
     actions.set_spacing(8.0F);
-    actions.add<DashButton>("cancel").on_click([this] { cancel_creation(); });
     m_confirm_button = &actions.add<DashButton>("create");
     m_confirm_button->set_enabled(false);
     m_confirm_button->on_click([this] { create_level(); });
@@ -160,6 +153,10 @@ void LevelSelectorOverlay::create_level() {
 
 void LevelSelectorOverlay::apply_theme_defaults(const Theme& theme) {
     Overlay::apply_theme_defaults(theme);
+
+    if (auto* form = dynamic_cast<Container*>(m_create_panel->find("create-level-form"))) {
+        form->configure_all_styles([&theme](Style& style) { dash_ui::panel_style(style, theme); });
+    }
 
     configure_all_styles([&theme](Style& style) {
         style.border(BorderEdge{0.0F, BorderType::None});

@@ -18,6 +18,10 @@ void Viewport::set_size(Vector2 size) {
     m_size = size;
 }
 
+void Viewport::set_background_color(Color color) {
+    m_background_color = color;
+}
+
 Vector2 Viewport::mouse_position() const {
     const Vector2 mouse = GetMousePosition();
     return {mouse.x - m_position.x, mouse.y - m_position.y};
@@ -32,7 +36,6 @@ void Viewport::begin() {
     bool has_different_size =
         m_target.texture.width != static_cast<int>(m_size.x) || m_target.texture.height != static_cast<int>(m_size.y);
 
-    // re-create texture if the requested size changes
     if (has_different_size && m_size.x > 0.0f) {
         if (m_target.id != 0) {
             UnloadRenderTexture(m_target);
@@ -41,7 +44,6 @@ void Viewport::begin() {
         m_target = LoadRenderTexture(static_cast<int>(m_size.x), static_cast<int>(m_size.y));
     }
 
-    // skip invalid textures
     if (m_target.id == 0) {
         std::cout << "[game]: skipping viewport (invalid id)\n";
         return;
@@ -50,11 +52,10 @@ void Viewport::begin() {
     m_camera.center_viewport(m_size);
 
     BeginTextureMode(m_target);
-    ClearBackground(BLACK);
+    ClearBackground(m_background_color);
 }
 
 void Viewport::end() {
-    // skip invalid textures
     if (m_target.id == 0) {
         std::cout << "[game]: skipping viewport (invalid id)\n";
         return;

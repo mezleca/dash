@@ -2,7 +2,6 @@
 #include "core/physics/world.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <iostream>
 #include <stdexcept>
 
@@ -25,9 +24,6 @@ bool JsonDeserializer::supports_file(const std::filesystem::path& file) {
 
 [[maybe_unused]] static void from_json(const nlohmann::json& data, b2Vec2& point) {
     const Vector2 pixels = data.get<Vector2>();
-    if (!std::isfinite(pixels.x) || !std::isfinite(pixels.y)) {
-        throw std::invalid_argument("shape coordinates must be finite");
-    }
 
     point = {pixels.x / PHYSICS_PIXELS_PER_METER, pixels.y / PHYSICS_PIXELS_PER_METER};
 }
@@ -42,8 +38,9 @@ bool JsonDeserializer::supports_file(const std::filesystem::path& file) {
 [[maybe_unused]] static void from_json(const nlohmann::json& data, b2Polygon& polygon) {
     const auto& vertices = data.at("vertices");
     const float radius = data.value("radius", 0.0f);
-    if (!vertices.is_array() || vertices.size() < 3 || vertices.size() > B2_MAX_POLYGON_VERTICES || !std::isfinite(radius)) {
-        throw std::invalid_argument("polygon requires 3 to 8 vertices and a finite radius");
+
+    if (!vertices.is_array() || vertices.size() < 3 || vertices.size() > B2_MAX_POLYGON_VERTICES) {
+        throw std::invalid_argument("polygon requires 3 to 8 vertices");
     }
 
     if (radius < 0.0f) {
@@ -71,9 +68,6 @@ bool JsonDeserializer::supports_file(const std::filesystem::path& file) {
 
 [[maybe_unused]] static void from_json(const nlohmann::json& data, b2Circle& circle) {
     const float radius = data.at("radius").get<float>();
-    if (!std::isfinite(radius)) {
-        throw std::invalid_argument("circle radius must be finite");
-    }
 
     if (radius <= 0.0f) {
         std::cerr << "[shape] warning: nonpositive circle radius\nusing 1 pixel\n";
@@ -93,9 +87,6 @@ bool JsonDeserializer::supports_file(const std::filesystem::path& file) {
 
 [[maybe_unused]] static void from_json(const nlohmann::json& data, b2Capsule& capsule) {
     const float radius = data.at("radius").get<float>();
-    if (!std::isfinite(radius)) {
-        throw std::invalid_argument("capsule radius must be finite");
-    }
 
     if (radius <= 0.0f) {
         std::cerr << "[shape] warning: nonpositive capsule radius\nusing 1 pixel\n";
@@ -177,7 +168,7 @@ const nlohmann::json& JsonDeserializer::current() const {
 }
 
 const nlohmann::json* JsonDeserializer::find(std::string_view name) const {
-    const auto entry = current().find(std::string(name));
+    const auto entry = current().find(name);
     return entry == current().end() ? nullptr : &*entry;
 }
 

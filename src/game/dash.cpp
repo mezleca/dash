@@ -4,7 +4,6 @@
 #include <raylib.h>
 
 Dash::Dash() : Game({"dash", 1280, 720}) {
-    // create the default viewport
     auto& viewport = create_viewport(0);
     viewport.camera().view().zoom = DEFAULT_CAMERA_ZOOM;
 
@@ -41,7 +40,7 @@ void Dash::on_initialize() {
         std::cerr << "[game] warning: settings could not be loaded\n";
     }
 
-    // read metadata before the selector creates cards. game objects are loaded when a card is opened.
+    // load metadata before creating level cards.
     for (const auto& entry : fs::directory_iterator(LEVELS_LOCATION)) {
         if (!entry.is_directory()) {
             continue;
@@ -93,6 +92,12 @@ void Dash::on_update(float frametime) {
         return;
     }
 
+    const Color background = m_current_level != nullptr ? m_current_level->solid_background() : BLACK;
+
+    for (std::size_t index = 0; index < viewport_count(); ++index) {
+        get_viewport(index)->set_background_color(background);
+    }
+
     // the gameplay viewport fills the window outside the editor.
     const bool editing = m_current_level != nullptr && m_current_level->state() == LevelState::EDITING;
     if (!editing) {
@@ -102,7 +107,6 @@ void Dash::on_update(float frametime) {
         }
     }
 
-    // early return if we're not in a level
     if (m_current_level == nullptr || m_current_level->state() == LevelState::INVALID) {
         return;
     }
@@ -110,10 +114,7 @@ void Dash::on_update(float frametime) {
     m_ui->update_editor();
     m_current_level->update();
 
-    // update level behaviours and remove completed ones before entity components run.
-    if (m_current_level->state() != LevelState::DEATH) {
-        m_current_level->update_behaviours(frametime);
-    }
+    m_current_level->update_behaviours(frametime);
 }
 
 void Dash::on_render() {
@@ -151,7 +152,7 @@ bool Dash::load_level(DashLevel& level, bool editor, bool force_free_mode) {
         camera.set_target(level.player_start());
     } else {
         level.spawn_player(m_settings->godmode(), force_free_mode || free_mode());
-        level.player()->update_camera(camera, level, true);
+        level.camera_control().update(camera, level.player()->camera_target(camera, level, true), 0.0F, true);
         level.set_music_volume(static_cast<float>(m_settings->volume()) / 100.0f);
 
         if (!level.load_music()) {
@@ -182,9 +183,7 @@ bool Dash::start_level() {
 
     m_current_level->reset();
 
-    // configure editor.
     if (m_current_level->state() == LevelState::EDITING) {
-        // TOFIX: use latest editing position instead of player start.
         camera.set_target(m_current_level->player_start());
 
         if (auto* viewport = get_viewport(0)) {
@@ -194,11 +193,9 @@ bool Dash::start_level() {
         return true;
     }
 
-    // configure player and focus the camera.
     m_current_level->spawn_player(m_settings->godmode(), m_force_free_mode || free_mode());
-    player()->update_camera(camera, *m_current_level, true);
+    update_level_camera(0.0F, true);
 
-    // sync level with saved data.
     m_current_level->set_music_volume(static_cast<float>(m_settings->volume()) / 100.0f);
     m_current_level->play_music();
     m_current_level->record_attempt();
@@ -287,7 +284,6 @@ void Dash::kill_player() {
 
     player()->freeze();
 
-    // start death animation
     auto& camera = level_camera();
     camera.view().zoom = DEFAULT_CAMERA_ZOOM;
     camera.view().rotation = DEFAULT_CAMERA_ROTATION;
@@ -321,21 +317,23 @@ void Dash::on_fixed_update(float timestep) {
         return;
     }
 
-    // update movement and world physics.
     current_player->movement(timestep);
     Game::on_fixed_update(timestep);
 
-    // kill player and show death animation.
     if (current_player->death_requested()) {
         kill_player();
     }
 
-    // focus camera on player.
     if (m_current_level->state() == LevelState::PLAYING) {
-        if (auto* camera = camera_for(*current_player)) {
-            current_player->update_camera(*camera, *m_current_level);
-        }
+        update_level_camera(timestep);
     }
+}
+
+void Dash::update_level_camera(float timestep, bool snap) {
+    auto& camera = level_camera();
+    auto& control = m_current_level->camera_control();
+    const Vector2 target = player()->camera_target(camera, *m_current_level, snap);
+    control.update(camera, target, timestep, snap);
 }
 
 void Dash::on_shutdown() {

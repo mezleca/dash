@@ -10,6 +10,7 @@ namespace ui {
 enum class GameScreen {
     Menu,
     Gameplay,
+    Paused,
     Levels,
     Editor,
     EditorExit,

@@ -92,17 +92,14 @@ Vector2 RigidBody::get_size() const {
 
 void RigidBody::set_size(Vector2 size, Vector2 origin) {
     const Rectangle bounds = get_bounding_box();
-    if (!std::isfinite(size.x) || !std::isfinite(size.y) || size.x <= 0.0F || size.y <= 0.0F || bounds.width <= 0.0F ||
-        bounds.height <= 0.0F) {
+    if (size.x <= 0.0F || size.y <= 0.0F || bounds.width <= 0.0F || bounds.height <= 0.0F) {
         return;
     }
 
     const Vector2 scale = {size.x / bounds.width, size.y / bounds.height};
     const float factor = std::abs(scale.x - 1.0F) >= std::abs(scale.y - 1.0F) ? scale.x : scale.y;
 
-    // box2d shapes are "attached relative to the body's origin", not its center of mass
-    // https://box2d.org/documentation/md_simulation.html
-    // bounds use world pixels, subtract the body position and convert to local meters
+    // shape points are body-local meters.
     const Vector2 position = get_position();
     const b2Vec2 center = {
         (bounds.x + bounds.width * 0.5F - position.x) / PHYSICS_PIXELS_PER_METER,
@@ -115,8 +112,7 @@ void RigidBody::set_size(Vector2 size, Vector2 origin) {
             const Vector2 resized_size =
                 std::is_same_v<T, b2Polygon> ? size : Vector2{bounds.width * factor, bounds.height * factor};
 
-            // our shape rotation uses the bounds center, keep the requested anchor fixed in world space
-            // origin {0, 0} fixes the top-left corner, {0.5, 0.5} keeps the center fixed for handle dragging
+            // keep the requested resize anchor fixed in world space.
             const b2Vec2 offset = b2RotateVector(
                 b2MakeRot(m_rotation * DEG2RAD), {(resized_size.x - bounds.width) * (0.5F - origin.x) / PHYSICS_PIXELS_PER_METER,
                                                   (resized_size.y - bounds.height) * (0.5F - origin.y) / PHYSICS_PIXELS_PER_METER}
@@ -154,12 +150,10 @@ void RigidBody::set_size(Vector2 size, Vector2 origin) {
                     return;
                 }
 
-                // box2d: "instead use a helper function like b2MakePolygon or b2MakeBox"
-                // https://box2d.org/documentation/group__geometry.html
-                // rebuild normals and centroid along with the scaled vertices
+                // rebuild normals and centroid with the hull.
                 shape = b2MakePolygon(&hull, radius);
             } else {
-                // circles and capsule ends have one radius, uniform scaling preserves their supported geometry
+                // circles and capsule radii require uniform scaling.
                 if constexpr (std::is_same_v<T, b2Circle>) {
                     shape.center = scale_point(shape.center, factor, factor);
                 } else {
@@ -182,7 +176,7 @@ Rectangle RigidBody::get_bounding_box() const {
 }
 
 Rectangle RigidBody::get_world_bounding_box() const {
-    return to_rectangle(b2Body_ComputeAABB(m_body));
+    return to_rectangle(compute_aabb(m_base_shape, b2Body_GetTransform(m_body)));
 }
 
 b2BodyType RigidBody::get_body_type() const {
@@ -265,7 +259,7 @@ PhysicsShape RigidBody::rotated_shape() const {
     const float radians = m_rotation * (B2_PI / 180.0f);
     const b2Rot rotation = {std::cos(radians), std::sin(radians)};
 
-    // rotation around the visual bounds center is an editor convention, not a box2d requirement
+    // rotate around the visual center, matching the editor pivot.
     const b2AABB bounds = compute_aabb(m_base_shape, b2Transform_identity);
     const b2Vec2 pivot = {
         (bounds.lowerBound.x + bounds.upperBound.x) * 0.5f,
@@ -327,9 +321,7 @@ void RigidBody::update_shape() {
         rotated_shape()
     );
 
-    // box2d on geometry setters: "does not modify the mass properties"
-    // https://box2d.org/documentation/group__shape.html
-    // update the existing body after replacing its geometry, without recreating the shape
+    // geometry setters leave body mass unchanged.
     b2Body_UpdateMassFromShapes(m_body);
     m_grounded = false;
 }
@@ -352,7 +344,7 @@ void RigidBody::set_sensor(bool sensor) {
         return;
     }
 
-    // the sensor flag is fixed at creation, so the shape must be recreated.
+    // box2d fixes sensor status at shape creation.
     const b2ShapeId replacement = create_shape(shape_definition(sensor));
     b2DestroyShape(m_shape, true);
     m_shape = replacement;

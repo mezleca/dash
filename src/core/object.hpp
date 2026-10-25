@@ -67,7 +67,7 @@ public:
 
     void remove_component(Component& component);
 
-    void update(float frametime);
+    virtual void update(float frametime);
     void render(Rectangle bounds, const Camera2D& camera, Vector2 viewport_size) const;
 
     virtual void serialize(Serializer& serializer) const;

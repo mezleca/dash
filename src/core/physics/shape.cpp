@@ -20,6 +20,6 @@ b2Polygon make_box_shape(float width, float height) {
     const float half_width = width / (2.0f * PHYSICS_PIXELS_PER_METER);
     const float half_height = height / (2.0f * PHYSICS_PIXELS_PER_METER);
 
-    // offset the box so body origin matches the sprite top left corner
+    // match the sprite's top-left origin.
     return b2MakeOffsetBox(half_width, half_height, {half_width, half_height}, b2Rot_identity);
 }

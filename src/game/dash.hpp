@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/game.hpp"
-#include "game/entity/player.hpp"
+#include "game/objects/entities/player.hpp"
 #include "game/level/level.hpp"
 #include "game/settings/settings.hpp"
 #include "editor/editor.hpp"
@@ -9,6 +9,8 @@
 
 #include <unordered_map>
 #include <memory>
+
+constexpr std::string DASH_VERSION = "0.0.1";
 
 constexpr float DEFAULT_CAMERA_ZOOM = 1.2f;
 constexpr float DEFAULT_CAMERA_ROTATION = 0.0f;
@@ -83,6 +85,7 @@ public:
 
 private:
     CameraView& level_camera() const;
+    void update_level_camera(float timestep, bool snap = false);
     void on_initialize() override;
     void on_fixed_update(float timestep) override;
     void on_update(float frametime) override;

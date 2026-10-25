@@ -1,6 +1,53 @@
 #include "theme.hpp"
+#include <imgui-ui/style/styled-node.hpp>
 
 using namespace ui;
+
+void dash_ui::panel_style(Style& style, const Theme& theme) {
+    style.background_color(theme.background_secondary_color);
+    style.padding({panel_padding, panel_padding});
+    style.border_radius(panel_rounding);
+    style.border(BorderEdge{2.0F, BorderType::Solid});
+    style.border_color(rgba(149, 204, 221, 60));
+}
+
+void dash_ui::editor_panel_style(Style& style, const Theme& theme) {
+    panel_style(style, theme);
+
+    style.border(BorderEdge{1.0F, BorderType::Solid});
+    style.padding({spacing, spacing});
+}
+
+void dash_ui::input_style(StyledNode& input, const Theme& theme) {
+    const auto& transition = control_transition;
+
+    input.configure_all_styles([&](Style& style) {
+        style.padding({6.0F, 3.0F});
+        style.border_radius(theme.controls.rounding);
+        style.background_color(theme.background_tertiary_color, transition);
+    });
+
+    input.style(StyleType::HOVER).background_color(theme.controls.hover_color, transition);
+    input.style(StyleType::ACTIVE)
+        .background_color(theme.controls.active_color, transition)
+        .border_color(theme.accent_color, transition);
+    input.style(StyleType::FOCUS).border_color(theme.accent_color, transition);
+}
+
+void dash_ui::card_style(StyledNode& card, const Theme& theme) {
+    const auto& transition = control_transition;
+
+    card.configure_all_styles([&](Style& style) {
+        panel_style(style, theme);
+        style.background_color(theme.background_secondary_color, transition);
+        style.border_color(theme.controls.border_color, transition);
+    });
+
+    card.style(StyleType::HOVER)
+        .background_color(theme.controls.background_color, transition)
+        .border_color(theme.accent_hover_color, transition);
+    card.style(StyleType::ACTIVE).background_color(theme.controls.active_color, transition);
+}
 
 Theme make_dash_theme() {
     Theme theme;
@@ -23,6 +70,7 @@ Theme make_dash_theme() {
     theme.controls.border_color = rgb(92, 92, 92);
     theme.controls.mark_color = rgb(208, 231, 230);
     theme.controls.rounding = 3.0F;
+    theme.controls.font_size = dash_ui::control_font_size;
     theme.controls.thumb_size = 10.0F;
 
     theme.scrollbar.size = 8.0F;

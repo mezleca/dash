@@ -3,7 +3,8 @@
 #include "game/ui/controls.hpp"
 
 class DashLevel;
-class EditorIconButton;
+class DashIconButton;
+
 namespace ui {
     class Container;
     class TextWidget;
@@ -25,5 +26,5 @@ private:
     ui::Container* m_content = nullptr;
     ui::TextWidget* m_name = nullptr;
     ui::TextWidget* m_description = nullptr;
-    EditorIconButton* m_remove_button = nullptr;
+    DashIconButton* m_remove_button = nullptr;
 };

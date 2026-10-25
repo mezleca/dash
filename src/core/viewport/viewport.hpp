@@ -13,8 +13,6 @@ class Viewport {
 public:
     explicit Viewport(ViewportId id);
     ~Viewport();
-    Viewport(const Viewport&) = delete;
-    Viewport& operator=(const Viewport&) = delete;
 
     void begin();
     void end();
@@ -38,6 +36,7 @@ public:
 
     void set_position(Vector2 position);
     void set_size(Vector2 size);
+    void set_background_color(Color color);
 
     Vector2 position() const {
         return m_position;
@@ -56,4 +55,5 @@ private:
     Vector2 m_position = {0.0f, 0.0f};
     Vector2 m_size = {0.0f, 0.0f};
     ViewportId m_id = 0;
+    Color m_background_color = BLACK;
 };

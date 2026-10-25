@@ -2,6 +2,8 @@
 #include "core/components/rigid-body.hpp"
 #include "core/object.hpp"
 
+#include <algorithm>
+
 World::World() {
     b2WorldDef definition = b2DefaultWorldDef();
     definition.gravity = {0.0f, DEFAULT_GRAVITY / PHYSICS_PIXELS_PER_METER};
@@ -24,7 +26,6 @@ void World::remove(RigidBody& body) {
 }
 
 void World::step(float timestep) {
-    // clear ground state before updating contacts.
     for (RigidBody* body : m_bodies) {
         body->m_grounded = false;
     }
@@ -40,23 +41,17 @@ void World::update_contacts() {
             continue;
         }
 
-        // box2d gives the buffer capacity first, then returns the number of contacts it wrote.
+        // allocate capacity before reading contacts.
         m_contacts.resize(static_cast<size_t>(b2Body_GetContactCapacity(body->m_body)));
         const int count = b2Body_GetContactData(body->m_body, m_contacts.data(), static_cast<int>(m_contacts.size()));
 
         for (int i = 0; i < count; ++i) {
             const b2ContactData& contact = m_contacts[static_cast<size_t>(i)];
-            bool touching = false;
-
-            // ignore speculative contacts that received no collision impulse.
-            for (int point = 0; point < contact.manifold.pointCount; ++point) {
-                const b2ManifoldPoint& manifold_point = contact.manifold.points[point];
-                touching |= manifold_point.separation <= 0.005f || manifold_point.totalNormalImpulse > 0.0f;
-
-                if (touching) {
-                    break;
-                }
-            }
+            // ignore speculative contacts without an impulse.
+            const bool touching = std::any_of(
+                contact.manifold.points, contact.manifold.points + contact.manifold.pointCount,
+                [](const b2ManifoldPoint& point) { return point.separation <= 0.005f || point.totalNormalImpulse > 0.0f; }
+            );
 
             if (!touching) {
                 continue;
@@ -66,7 +61,7 @@ void World::update_contacts() {
             const b2ShapeId other_shape = is_a ? contact.shapeIdB : contact.shapeIdA;
             auto* other = static_cast<RigidBody*>(b2Shape_GetUserData(other_shape));
 
-            // point the normal from this entity towards the other collider.
+            // orient the normal towards the other body.
             const float sign = is_a ? 1.0f : -1.0f;
             const Vector2 normal = {contact.manifold.normal.x * sign, contact.manifold.normal.y * sign};
 
@@ -74,7 +69,7 @@ void World::update_contacts() {
             const Vector2 other_velocity = other->get_velocity();
             const float approach_speed = (velocity.x - other_velocity.x) * normal.x + (velocity.y - other_velocity.y) * normal.y;
 
-            // ignore contacts the bodies are already moving away from
+            // ignore separating bodies.
             if (approach_speed < -1.0f) {
                 continue;
             }

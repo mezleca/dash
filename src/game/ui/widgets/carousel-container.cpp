@@ -49,7 +49,6 @@ void CarouselContainer::draw_children() {
 }
 
 void CarouselContainer::arrange_items() {
-    // measure the row and find the offset that centers the selected item.
     const ImVec2 available = child_layout_size();
 
     float cursor = 0.0F;
@@ -119,9 +118,9 @@ void CarouselContainer::event(UiEvent& input) {
 void CarouselContainer::mouse_press_event(UiEvent& input) {
     if (input.button != PointerButton::Left || !capture_pointer()) return;
 
-    // stop centering while pressed so the card stays under the pointer until release.
+    // pause centering until release.
     animator().cancel();
-    m_press = Press{input.position.x, m_offset};
+    m_press = CarouselPress{input.position.x, m_offset};
 }
 
 void CarouselContainer::mouse_move_event(UiEvent& input) {
@@ -139,11 +138,11 @@ void CarouselContainer::mouse_move_event(UiEvent& input) {
 void CarouselContainer::mouse_release_event(UiEvent& input) {
     if (input.button != PointerButton::Left || !m_press) return;
 
-    const Press press = *m_press;
+    const CarouselPress press = *m_press;
     m_press.reset();
     release_pointer();
 
-    // suppress the card's click when release selects a different item.
+    // select another card before allowing its click.
     if (!press.dragging) {
         std::size_t index = 0;
         for (const auto& child : children()) {

@@ -21,18 +21,20 @@ public:
     static const char* type_to_str(SpriteType type);
     static SpriteType type_from_str(std::string_view type);
 
-    void load_texture(const char* location);
+    bool load_texture(const char* location);
+    const std::string& texture_location() const {
+        return m_texture_location;
+    }
     void render(Rectangle bounds, const Camera2D& camera, Vector2 viewport_size) const override;
 
     void serialize(Serializer& serializer) const override;
     void deserialize(Deserializer& deserializer, const std::filesystem::path& directory) override;
 
 protected:
-    Sprite(GameObject& object, ComponentId id, SpriteType type, Color tint);
     void render_centered(Rectangle bounds) const;
 
 private:
-    void render_textured_shape() const;
+    void render_textured_shape(Color color) const;
 
     std::string m_texture_location;
     Texture2D m_texture = {};
@@ -42,4 +44,5 @@ public:
     float rotation = 0.0f;
     SpriteType type = SpriteType::SQUARE;
     bool flip_x = false;
+    float opacity = 1.0F; // runtime multiplier
 };

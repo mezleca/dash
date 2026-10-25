@@ -12,7 +12,7 @@ enum class ComponentId : int {
     None = 0,
     RigidBody = 1,
     Sprite = 2,
-    BackgroundSprite = 3
+    Particles = 3,
 };
 
 class Component {

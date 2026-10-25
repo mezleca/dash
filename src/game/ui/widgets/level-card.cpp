@@ -1,6 +1,7 @@
 #include "level-card.hpp"
 #include "game/level/level.hpp"
-#include "game/ui/overlays/editor/controls.hpp"
+#include "game/ui/controls.hpp"
+#include "game/ui/theme.hpp"
 
 #include <imgui-ui/surface.hpp>
 #include <imgui-ui/runtime.hpp>
@@ -77,7 +78,7 @@ LevelCard::LevelCard(const DashLevel& level) : DashButton("", {percent(50), perc
 
     m_content->add<LevelProgressBar>(level);
 
-    m_remove_button = &add<EditorIconButton>(nullptr);
+    m_remove_button = &add<DashIconButton>(nullptr);
     m_remove_button->set_anchor(Anchor::TopRight);
     m_remove_button->set_visible(false);
 }
@@ -120,10 +121,5 @@ void LevelCard::apply_theme_defaults(const Theme& theme) {
     m_description->set_font(surface().get_primary_font(), 24);
     m_remove_button->set_texture(surface().runtime().textures().add("editor-close", RESOURCES_LOCATION / "ui/close.svg"));
 
-    configure_all_styles([](Style& style) {
-        style.background_color(rgb(36, 36, 36));
-        style.padding({16.0F, 16.0F});
-        style.border_radius(4.0F);
-        style.border_thickness(2.0F);
-    });
+    dash_ui::card_style(*this, theme);
 }

@@ -7,24 +7,7 @@
 #include <functional>
 #include <utility>
 
-class EditorIconButton : public ui::ImageWidget {
-public:
-    explicit EditorIconButton(ui::Texture* icon);
-
-    EditorIconButton& on_click(std::function<void()> callback) {
-        m_on_click = std::move(callback);
-        return *this;
-    }
-
-protected:
-    void apply_theme_defaults(const ui::Theme& theme) override;
-    void event(ui::UiEvent& event) override;
-
-private:
-    std::function<void()> m_on_click;
-};
-
-class EditorModeButton : public EditorIconButton {
+class EditorModeButton : public DashIconButton {
 public:
     EditorModeButton(ui::Texture* icon, bool selected);
     void set_selected(bool value);
@@ -40,7 +23,7 @@ private:
 
 class EditorTabButton : public DashButton {
 public:
-    explicit EditorTabButton(std::string name);
+    explicit EditorTabButton(std::string name, bool selected = false);
     void set_selected(bool value);
 
 protected:
@@ -50,12 +33,4 @@ private:
     void update_style();
 
     bool m_selected = false;
-};
-
-class EditorTextInput : public ui::TextInputWidget {
-public:
-    explicit EditorTextInput(std::string& value);
-
-protected:
-    void apply_theme_defaults(const ui::Theme& theme) override;
 };
